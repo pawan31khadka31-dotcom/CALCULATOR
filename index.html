@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Free Nepali calculator: saikada byaj, SIP, EMI, date and unit converter, formulas and scientific calculator. सैकडा ब्याज, एसआईपी, ईएमआई।">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f6b5c">
+<title>Hisab Calculator | हिसाब क्याल्कुलेटर</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--bg:#f3f1ec;--panel:#fff;--ink:#1d2b2a;--mute:#6b7775;--line:#d9d6cd;--acc:#0f6b5c;--acc2:#e8f2ef;--key:#eceae3;--op:#d6e9e4;--warn:#b3261e}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#141a19;--panel:#1d2625;--ink:#e6efed;--mute:#93a29f;--line:#33403e;--acc:#4fc2ab;--acc2:#21332f;--key:#283533;--op:#2d4a44}}
+:root[data-theme=dark]{--bg:#141a19;--panel:#1d2625;--ink:#e6efed;--mute:#93a29f;--line:#33403e;--acc:#4fc2ab;--acc2:#21332f;--key:#283533;--op:#2d4a44}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI","Noto Sans Devanagari",system-ui,sans-serif;padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0)}
+.wrap{max-width:560px;margin:0 auto;padding:16px}
+h1{font-size:1.25rem;margin:4px 0 12px;display:flex;justify-content:space-between;align-items:center}
+h1 button{font-size:.8rem}
+.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs button{flex:1;padding:10px 4px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;font:inherit;font-size:.85rem;cursor:pointer}
+.tabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px}
+.hide{display:none}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--acc);outline-offset:1px}
+/* calculator */
+#disp{background:var(--acc2);border-radius:8px;padding:10px 12px;margin-bottom:10px;text-align:right}
+#expr{color:var(--mute);min-height:1.4em;font-size:.9rem;word-break:break-all}
+#res{font-size:2rem;font-weight:600;word-break:break-all}
+.keys{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.sci{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:6px}
+.k{padding:13px 0;border:0;border-radius:8px;background:var(--key);color:var(--ink);font:inherit;font-size:1.05rem;cursor:pointer}
+.k:active{filter:brightness(.9)}
+.k.op{background:var(--op)}.k.eq{background:var(--acc);color:#fff}.k.s{font-size:.85rem;padding:10px 0}
+.row{display:flex;justify-content:space-between;align-items:center;margin:8px 0 6px;font-size:.85rem;color:var(--mute)}
+.row button{border:1px solid var(--line);background:none;color:var(--ink);border-radius:6px;padding:4px 10px;cursor:pointer;font:inherit}
+#hist{font-size:.85rem;color:var(--mute);margin-top:8px}
+#hist div{padding:3px 0;border-top:1px solid var(--line);cursor:pointer}
+/* forms */
+label{display:block;font-size:.85rem;color:var(--mute);margin:10px 0 3px}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.g2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.go{width:100%;margin-top:14px;padding:12px;border:0;border-radius:8px;background:var(--acc);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+.go.alt{background:none;color:var(--acc);border:1px solid var(--acc);margin-top:8px}
+.out{margin-top:14px;display:grid;gap:8px}
+.card{background:var(--acc2);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;gap:10px}
+.card b{font-size:1.05rem}
+.card.big{background:var(--acc);color:#fff}
+.note{font-size:.8rem;color:var(--mute);margin-top:8px}
+.chips{display:flex;gap:6px;margin-top:6px}
+.chips button{flex:1;padding:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;cursor:pointer;font:inherit;font-size:.85rem}
+.bar{height:14px;border-radius:7px;overflow:hidden;display:flex;background:var(--line);margin-top:4px}
+.bar i{display:block;height:100%}
+.tw{max-height:260px;overflow:auto;margin-top:12px;border:1px solid var(--line);border-radius:8px}
+table{border-collapse:collapse;width:100%;font-size:.8rem}
+th,td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th{position:sticky;top:0;background:var(--panel)}
+th:first-child,td:first-child{text-align:left}
+.err{color:var(--warn)}
+.tabs{overflow-x:auto}.tabs button{min-width:78px;font-size:.78rem}.hr{border-top:1px solid var(--line);padding:6px 0;white-space:pre-line;font-size:.85rem}
+.amber{background:#ffe08a;color:#4a3500;padding:8px 10px;border-radius:8px;font-size:.8rem;margin-top:10px}
+.acts{margin-top:10px}.acts button{padding:10px;border:1px solid var(--acc);background:none;color:var(--acc);border-radius:8px;font:inherit;font-size:.85rem;cursor:pointer}
+#recs{margin-top:12px;font-size:.85rem}#recs summary{cursor:pointer;color:var(--mute)}#recs .r{border-top:1px solid var(--line);padding:6px 0;white-space:pre-line}
+.ad{min-height:0;margin-top:12px;text-align:center}
+footer{margin:14px 0;font-size:.75rem;color:var(--mute);text-align:center}footer a{color:var(--acc)}
+.slab{display:grid;grid-template-columns:2fr 1fr;gap:6px;margin-bottom:6px}
+@media print{.tabs,.k,.go,.acts,#hist,#theme,.chips,.ad,#recs,.row{display:none!important}body{background:#fff;color:#000}}
+#rcpt{display:none}@media print{body.rc .wrap{display:none!important}body.rc #rcpt{display:block!important;padding:20px;color:#000;background:#fff}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1><span id="brand">Hisab Calculator | हिसाब</span> <button id="npd" class="k s" style="padding:6px 10px">०१२३</button> <button id="theme" class="k s" style="padding:6px 10px">Dark / Light</button></h1>
+  <div class="tabs" role="tablist">
+    <button class="on" data-t="calc">Calculator<br>क्याल्कुलेटर</button>
+    <button data-t="int">Byaj<br>ब्याज (सैकडा)</button>
+    <button data-t="sip">SIP<br>एसआईपी</button>
+    <button data-t="emi">EMI<br>किस्ता (ऋण)</button>
+    <button data-t="date">Date<br>मिति</button>
+    <button data-t="unit">Units<br>नाप</button>
+    <button data-t="geo">Formulas<br>सूत्र</button>
+    <button data-t="hist">History<br>इतिहास</button>
+  </div>
+
+  <!-- CALCULATOR -->
+  <section id="calc" class="panel">
+    <div id="disp"><div id="expr"></div><div id="res">0</div></div>
+    <div class="row"><span>Mode: <b id="modeTxt">Basic</b></span>
+      <span><button id="sciBtn">Scientific</button> <button id="degBtn">DEG</button></span></div>
+    <div id="sci" class="sci hide"></div>
+    <div id="keys" class="keys"></div>
+    <div id="hist"></div>
+  </section>
+
+  <!-- NEPALI INTEREST -->
+  <section id="int" class="panel hide">
+    <label>Principal / मूलधन (Rs)</label>
+    <input id="iP" type="number" inputmode="decimal" value="100000">
+    <label>Rate: Rs per 100 per month / सैकडा दर (मासिक)</label>
+    <input id="iR" type="number" inputmode="decimal" step="0.01" value="2">
+    <div class="chips"><button data-r="1">सैकडा १</button><button data-r="1.5">१.५</button><button data-r="2">सैकडा २</button><button data-r="2.5">२.५</button><button data-r="3">सैकडा ३</button></div>
+    <label>Time / अवधि</label>
+    <div class="g3">
+      <div><input id="iY" type="number" inputmode="numeric" min="0" value="1" aria-label="Years"><small class="note">Year / वर्ष</small></div>
+      <div><input id="iM" type="number" inputmode="numeric" min="0" value="0" aria-label="Months"><small class="note">Month / महिना</small></div>
+      <div><input id="iD" type="number" inputmode="numeric" min="0" value="0" aria-label="Days"><small class="note">Day / दिन</small></div>
+    </div>
+    <label>Or use dates / वा मिति राख्नुहोस् (AD)</label>
+    <div class="g2"><div><input id="iF" type="date" aria-label="From date"><small class="note">From / देखि</small></div><div><input id="iE" type="date" aria-label="To date"><small class="note">To / सम्म</small></div></div>
+    <div class="note">If both dates are filled they replace Year/Month/Day. Full months + remaining days (30 days = 1 month). / दुवै मिति भरेमा माथिको अवधि बदलिन्छ।</div>
+    <label>Type / किसिम</label>
+    <select id="iT"><option value="s">Simple / साधारण ब्याज</option><option value="cm">Compound monthly / मासिक चक्रीय ब्याज</option><option value="cy">Compound yearly / वार्षिक चक्रीय ब्याज</option></select>
+    <button class="go" id="iGo">Calculate / हिसाब गर्नुहोस्</button>
+    <div class="out" id="iOut"></div>
+    <p class="note">Sai kada 2 = Rs 2 interest on every Rs 100 per month (= 24% per year). 30 days = 1 month.<br>सैकडा २ = प्रत्येक रु १०० मा महिनाको रु २ ब्याज। ३० दिन = १ महिना।</p>
+  </section>
+
+  <!-- SIP -->
+  <section id="sip" class="panel hide">
+    <label>Monthly SIP / मासिक किस्ता (Rs)</label>
+    <input id="sA" type="number" inputmode="decimal" value="5000">
+    <div class="g2">
+      <div><label>Return per year % / वार्षिक प्रतिफल</label><input id="sR" type="number" inputmode="decimal" step="0.1" value="12"></div>
+      <div><label>Years / वर्ष</label><input id="sY" type="number" inputmode="numeric" min="1" value="10"></div>
+    </div>
+    <label>Yearly step-up % (optional) / वार्षिक वृद्धि</label>
+    <input id="sS" type="number" inputmode="decimal" value="0">
+    <button class="go" id="sGo">Calculate / हिसाब गर्नुहोस्</button>
+    <div class="out" id="sOut"></div>
+    <button class="go alt hide" id="sXl">Download Excel / एक्सेल डाउनलोड</button>
+    <div class="tw hide" id="sTw"></div>
+  </section>
+
+  <!-- EMI -->
+  <section id="emi" class="panel hide">
+    <label>Loan amount / ऋण रकम (Rs)</label><input id="eP" type="number" inputmode="decimal" value="1000000">
+    <div class="g2"><div><label>Interest % per year / वार्षिक ब्याज</label><input id="eR" type="number" inputmode="decimal" step="0.01" value="12"></div>
+    <div><label>Years / वर्ष</label><input id="eY" type="number" inputmode="decimal" value="5"></div></div>
+    <button class="go" id="eGo">Calculate / हिसाब गर्नुहोस्</button>
+    <div class="out" id="eOut"></div><div class="tw hide" id="eTw"></div>
+  </section>
+
+
+  <section id="date" class="panel hide">
+    <div class="amber">⚠ BS table covers 2000–2090 and matches known New Year dates; verify before official use. / आधिकारिक प्रयोगअघि जाँच गर्नुहोस्।</div>
+    <label>BS → AD / बि.सं. → ई.सं. (Year, Month, Day)</label>
+    <div class="g3"><input id="dY" type="number" aria-label="BS year"><select id="dM" aria-label="BS month"></select><input id="dD" type="number" min="1" max="32" aria-label="BS day"></div>
+    <button class="go" id="dGo1">Convert / परिवर्तन</button>
+    <label>AD → BS / ई.सं. → बि.सं.</label><input id="dA" type="date">
+    <button class="go" id="dGo2">Convert / परिवर्तन</button><div class="out" id="dOut"></div>
+  </section>
+  <section id="unit" class="panel hide">
+    <label>Type / किसिम</label><select id="uC"></select>
+    <div id="uL" style="margin-top:10px"></div>
+    <div class="note">Type a value in any box; all other units change. / कुनै पनि बाकसमा मान लेख्नुहोस्, बाँकी आफैं बदलिन्छ।</div>
+  </section>
+  <section id="geo" class="panel hide">
+    <label>Shape / आकृति</label><select id="gS"></select><div id="gF"></div>
+    <button class="go" id="gGo">Calculate / हिसाब गर्नुहोस्</button><div class="out" id="gO"></div>
+    <details style="margin-top:10px"><summary><b>Area / क्षेत्रफल</b></summary><pre style="white-space:pre-wrap;font:inherit;font-size:.85rem">Square = a²
+Rectangle = l × w
+Triangle = ½ × b × h
+Triangle (Heron) = √[s(s−a)(s−b)(s−c)], s = (a+b+c)/2
+Triangle (2 sides + angle) = ½ ab sin C
+Equilateral triangle = (√3/4) a²
+Parallelogram = b × h
+Rhombus = ½ d₁ d₂
+Trapezoid = ½ (a+b) h
+Circle = πr²
+Semicircle = ½ πr²
+Sector = ½ r² θ (θ in radians) = (θ/360) πr²
+Ring = π (R² − r²)
+Ellipse = π a b
+Regular polygon = ½ × perimeter × apothem
+Cube: V = a³, S = 6a²
+Cuboid: V = lwh, S = 2(lw+wh+lh)
+Cylinder: V = πr²h, curved = 2πrh, total = 2πr(r+h)
+Cone: V = ⅓πr²h, curved = πrl, total = πr(r+l), l = √(r²+h²)
+Sphere: V = 4/3 πr³, S = 4πr²
+Hemisphere: V = 2/3 πr³, S = 3πr²</pre></details><details style="margin-top:10px"><summary><b>Perimeter / परिमिति</b></summary><pre style="white-space:pre-wrap;font:inherit;font-size:.85rem">Square = 4a
+Rectangle = 2 (l + w)
+Triangle = a + b + c
+Equilateral triangle = 3a
+Parallelogram = 2 (a + b)
+Rhombus = 4a
+Trapezoid = a + b + c + d
+Circle (circumference) = 2πr = πd
+Semicircle = πr + 2r
+Sector = 2r + rθ (θ in radians)
+Regular polygon = n × a
+Ellipse ≈ π [3(a+b) − √((3a+b)(a+3b))]</pre></details><details style="margin-top:10px"><summary><b>Linear algebra / रेखीय बीजगणित</b></summary><pre style="white-space:pre-wrap;font:inherit;font-size:.85rem">2×2 determinant: |a b; c d| = ad − bc
+2×2 inverse: 1/(ad−bc) × [d −b; −c a]
+3×3 determinant: a(ei−fh) − b(di−fg) + c(dh−eg)
+Inverse: A⁻¹ = adj(A) / det(A)
+det(AB) = det A × det B; det(Aᵀ) = det A
+det(kA) = kⁿ det A (n×n matrix)
+(AB)ᵀ = BᵀAᵀ; (AB)⁻¹ = B⁻¹A⁻¹
+Product: (AB)ᵢⱼ = Σ aᵢₖ bₖⱼ
+Solve Ax = b: x = A⁻¹ b
+Cramer's rule: xᵢ = det(Aᵢ) / det(A)
+Eigenvalues: det(A − λI) = 0, Av = λv
+Sum of eigenvalues = trace; product = det
+2×2 characteristic equation: λ² − (trace)λ + det = 0
+Dot product: a·b = Σ aᵢbᵢ = |a||b| cos θ
+Cross product: a×b = (a₂b₃−a₃b₂, a₃b₁−a₁b₃, a₁b₂−a₂b₁), |a×b| = |a||b| sin θ
+Length: |a| = √(Σ aᵢ²)
+Projection of a on b = (a·b / |b|²) b
+Rank + nullity = number of columns</pre></details><details style="margin-top:10px"><summary><b>Trigonometry / त्रिकोणमिति</b></summary><pre style="white-space:pre-wrap;font:inherit;font-size:.85rem">sin²θ + cos²θ = 1
+1 + tan²θ = sec²θ; 1 + cot²θ = csc²θ
+tan θ = sin θ / cos θ; cot θ = 1/tan θ
+sec θ = 1/cos θ; csc θ = 1/sin θ
+sin(−θ) = −sin θ; cos(−θ) = cos θ
+sin(90°−θ) = cos θ; cos(90°−θ) = sin θ
+sin(A±B) = sinA cosB ± cosA sinB
+cos(A±B) = cosA cosB ∓ sinA sinB
+tan(A±B) = (tanA ± tanB) / (1 ∓ tanA tanB)
+sin 2A = 2 sinA cosA
+cos 2A = cos²A − sin²A = 2cos²A − 1 = 1 − 2sin²A
+tan 2A = 2 tanA / (1 − tan²A)
+sin²A = (1 − cos 2A)/2; cos²A = (1 + cos 2A)/2
+2 sinA cosB = sin(A+B) + sin(A−B)
+2 cosA cosB = cos(A+B) + cos(A−B)
+2 sinA sinB = cos(A−B) − cos(A+B)
+Right triangle: sin = opp/hyp, cos = adj/hyp, tan = opp/adj
+Pythagoras: c² = a² + b²
+Law of sines: a/sinA = b/sinB = c/sinC = 2R
+Law of cosines: c² = a² + b² − 2ab cos C
+Radians: π rad = 180°; rad = deg × π/180
+Special angles (sin, cos, tan):
+ 0°: 0, 1, 0
+ 30°: ½, √3/2, 1/√3
+ 45°: √2/2, √2/2, 1
+ 60°: √3/2, ½, √3
+ 90°: 1, 0, undefined</pre></details>
+  </section>
+  <section id="hist" class="panel hide"><div id="hl"></div><button class="k s" id="hClr" style="padding:6px 10px;margin-top:8px">Clear history / इतिहास हटाउनुहोस्</button></section>
+
+  <div class="acts g3 hide" id="acts"><button id="aXl">Excel</button><button id="aPr">Print</button><button id="aPd">PDF</button><button id="aRc" class="hide">Receipt / रसिद</button><button id="aSv" class="hide">Save / सुरक्षित</button></div>
+  <details id="recs" class="hide"><summary>Saved records / सुरक्षित हिसाब</summary><div id="rl"></div><button class="k s" id="rClr" style="padding:6px 10px;margin-top:6px">Clear all / सबै हटाउनुहोस्</button></details>
+  <div class="g2" style="margin-top:10px"><button class="go alt hide" id="inst">Install App / एप राख्नुहोस्</button><button class="go alt" id="shr">Share / पठाउनुहोस्</button></div>
+  <div class="amber hide" id="ios">iPhone: Safari → Share → Add to Home Screen</div>
+  <div class="ad" id="ad"><!-- Paste your Google AdSense code here after approval --></div>
+  <div id="rcpt"></div>
+  <footer id="foot">Results are estimates only, not financial advice. / नतिजा अनुमानित मात्र हो, लगानी सल्लाह होइन।</footer>
+</div>
+
+<script>
+const BRAND={name:'Hisab Calculator | हिसाब',contact:'',affiliateText:'',affiliateUrl:''}; // edit for each cooperative / customer
+const $=id=>document.getElementById(id);
+let NP=false;const nd=s=>NP?String(s).replace(/[0-9]/g,d=>'०१२३४५६७८९'[d]):s;
+const fmt=n=>nd(isFinite(n)?Number(n).toLocaleString('en-IN',{maximumFractionDigits:2}):'—');
+const rs=n=>'Rs '+fmt(n);
+
+/* theme */
+$('theme').onclick=()=>{const r=document.documentElement;const dark=getComputedStyle(r).getPropertyValue('--bg').trim()==='#141a19';r.dataset.theme=dark?'light':'dark'};
+
+/* tabs */
+const TABS=['calc','int','sip','emi','date','unit','geo','hist'],TT={date:'BS to AD Date Converter',unit:'Unit Converter',geo:'Formulas: Area, Perimeter, Linear Algebra, Trigonometry',hist:'History',calc:'Scientific Calculator',int:'Saikada Byaj Calculator (सैकडा ब्याज)',sip:'SIP Calculator Nepal',emi:'Loan EMI Calculator'};
+const cur={};let tab='calc';
+function show(t){if(!TABS.includes(t))t='calc';tab=t;
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x.dataset.t===t));
+  TABS.forEach(x=>$(x).classList.toggle('hide',x!==t));
+  if(t==='hist')drawH();document.title=TT[t]+' | '+BRAND.name;$('acts').classList.toggle('hide',!(t==='sip'&&cur[t]));
+  try{history.replaceState(null,'','#'+t)}catch(e){}}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>show(b.dataset.t));
+$('brand').textContent=BRAND.name;
+if(BRAND.contact||BRAND.affiliateUrl)$('foot').innerHTML+='<br>'+BRAND.contact+(BRAND.affiliateUrl?' <a href="'+BRAND.affiliateUrl+'" target="_blank" rel="sponsored noopener">'+BRAND.affiliateText+'</a>':'');
+function setCur(t,title,lines,head,rows,nolog){cur[t]={title,lines,head,rows};if(!nolog)logH(title,lines.map(x=>x[0]+': '+x[1]).join(', '));if(tab===t&&t==='sip')$('acts').classList.remove('hide')}
+$('aXl').onclick=()=>{const c=cur[tab];if(!c)return;if(typeof XLSX==='undefined'){alert('Excel library could not load. Check internet.');return}
+  const wb=XLSX.utils.book_new(),a=XLSX.utils.aoa_to_sheet([[c.title],...c.lines]);a['!cols']=[{wch:30},{wch:20}];XLSX.utils.book_append_sheet(wb,a,'Summary');
+  if(c.rows){const b=XLSX.utils.aoa_to_sheet([c.head,...c.rows]);b['!cols']=Array(c.head.length).fill({wch:16});XLSX.utils.book_append_sheet(wb,b,'Schedule')}
+  XLSX.writeFile(wb,c.title.replace(/\W+/g,'-')+'.xlsx')};
+$('aPr').onclick=()=>window.print();
+$('aPd').onclick=()=>{const c=cur.sip;if(!c)return;if(!window.jspdf){alert('PDF library could not load. Check internet.');return}
+  const doc=new window.jspdf.jsPDF();let y=18;doc.setFontSize(16);doc.text('SIP Calculation',14,y);y+=10;doc.setFontSize(11);
+  c.lines.forEach(l=>{doc.text(l[0]+': '+l[1],14,y);y+=7});y+=5;doc.setFont(undefined,'bold');doc.text(c.head.join('   |   '),14,y);doc.setFont(undefined,'normal');y+=7;
+  c.rows.forEach(r=>{if(y>280){doc.addPage();y=18}doc.text(r.join('   |   '),14,y);y+=6});
+  doc.text('Estimate only, not financial advice.',14,Math.min(y+8,290));doc.save('SIP-calculation.pdf')};
+const RK='hisab_records';
+function recs(){try{return JSON.parse(localStorage.getItem(RK)||'[]')}catch(e){return[]}}
+function drawRecs(){$('rl').innerHTML=recs().map(r=>'<div class="r"><b>'+r.t+'</b> ('+r.d+')\n'+r.l+'</div>').join('')||'<div class="note">Nothing saved yet. / केही सुरक्षित छैन।</div>'}
+$('aSv').onclick=()=>{const c=cur[tab];if(!c)return;try{const r=recs();r.unshift({t:c.title,d:new Date().toLocaleString(),l:c.lines.map(x=>x[0]+': '+x[1]).join('\n')});localStorage.setItem(RK,JSON.stringify(r.slice(0,30)));drawRecs();
+$('aRc').onclick=()=>{const c=cur[tab];if(!c)return;const n=(prompt('Customer name / ग्राहकको नाम','')||'').replace(/</g,'&lt;');
+  $('rcpt').innerHTML='<h2>'+BRAND.name+'</h2><p>Date / मिति: '+new Date().toLocaleDateString()+'<br>Customer / ग्राहक: '+n+'</p><h3>'+c.title+'</h3><table>'+c.lines.map(x=>'<tr><td>'+x[0]+'</td><td>'+(typeof x[1]==='number'?fmt(x[1]):x[1])+'</td></tr>').join('')+'</table><p style="margin-top:60px">Customer sign / ग्राहकको सही: ________ &nbsp;&nbsp; Authorized sign / अधिकृत सही: ________</p><p style="font-size:12px">Estimate only. / अनुमानित हिसाब।</p>';
+  document.body.classList.add('rc');window.print();setTimeout(()=>document.body.classList.remove('rc'),800)};
+$('npd').onclick=()=>{NP=!NP;$('npd').textContent=NP?'0123':'०१२३';const g={int:'iGo',sip:'sGo',emi:'eGo'};for(const t in g)if(cur[t])$(g[t]).click()};$('recs').open=true}catch(e){alert('Could not save in this browser.')}};
+$('rClr').onclick=()=>{try{localStorage.removeItem(RK)}catch(e){}drawRecs()};
+drawRecs();
+
+/* ---------- CALCULATOR ---------- */
+let expr='',deg=true,last='0',hist=[];
+const toR=x=>deg?x*Math.PI/180:x, fromR=x=>deg?x*180/Math.PI:x;
+const F={sin:x=>{const r=Math.sin(toR(x));return Math.abs(r)<1e-12?0:r},cos:x=>{const r=Math.cos(toR(x));return Math.abs(r)<1e-12?0:r},tan:x=>Math.tan(toR(x)),
+  asin:x=>fromR(Math.asin(x)),acos:x=>fromR(Math.acos(x)),atan:x=>fromR(Math.atan(x)),
+  log:Math.log10,ln:Math.log,sqrt:Math.sqrt,cbrt:Math.cbrt,abs:Math.abs,
+  fact:n=>{if(n<0||n%1||n>170)return NaN;let r=1;for(let i=2;i<=n;i++)r*=i;return r}};
+const names=Object.keys(F).sort((a,b)=>b.length-a.length);
+function evaluate(e){
+  let s=e.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-').replace(/π/g,'(Math.PI)').replace(/\be\b/g,'(Math.E)')
+    .replace(/√\(/g,'sqrt(').replace(/\^/g,'**').replace(/%/g,'/100').replace(/Ans/g,'('+last+')');
+  s=s.replace(/(\d+(?:\.\d+)?|\))!/g,(m,a)=>'fact('+a+')');
+  names.forEach(n=>{s=s.replace(new RegExp('\\b'+n+'\\(','g'),'F.'+n+'(')});
+  const chk=s.replace(/F\.[a-z0-9]+/g,'').replace(/Math\.(PI|E)/g,'');
+  if(/[a-zA-Z_$]/.test(chk))throw Error('bad');
+  const open=(s.match(/\(/g)||[]).length,close=(s.match(/\)/g)||[]).length;
+  s+=')'.repeat(Math.max(0,open-close));
+  const v=Function('F','"use strict";return ('+s+')')(F);
+  if(typeof v!=='number'||!isFinite(v))throw Error('math');
+  return +v.toPrecision(12);
+}
+function draw(){$('expr').textContent=expr;}
+function press(v){
+  if(v==='C'){expr='';$('res').textContent='0';}
+  else if(v==='⌫'){expr=expr.replace(/(sin|cos|tan|asin|acos|atan|log|ln|sqrt|cbrt|abs|Ans)?\(?.$/,m=>'').slice(0)||'';expr=expr; }
+  else if(v==='='){
+    if(!expr)return;
+    try{const r=evaluate(expr);hist.unshift(expr+' = '+fmt(r));logH('Calculator',expr+' = '+fmt(r));hist=hist.slice(0,5);last=String(r);$('res').textContent=fmt(r);expr='';renderHist();}
+    catch(e){$('res').innerHTML='<span class="err">Error</span>';}
+  }else{
+    if(!expr&&/^[×÷+\^%!]/.test(v)&&last!=='0')expr='Ans';
+    expr+=v;
+    try{if(!/[+\-×÷−^(]$/.test(expr))$('res').textContent=fmt(evaluate(expr));}catch(e){}
+  }
+  draw();
+}
+/* backspace done simply */
+function back(){expr=expr.replace(/(asin|acos|atan|sin|cos|tan|log|ln|sqrt|cbrt|abs|Ans)\($|Ans$|.$/,'');draw();}
+function renderHist(){$('hist').innerHTML=hist.map((h,i)=>`<div data-i="${i}">${h}</div>`).join('');
+  $('hist').querySelectorAll('div').forEach(d=>d.onclick=()=>{expr=hist[d.dataset.i].split(' = ')[0];draw()});}
+const basic=['C','(',')','÷','7','8','9','×','4','5','6','−','1','2','3','+','0','.','⌫','='];
+basic.forEach(k=>{const b=document.createElement('button');b.className='k'+('÷×−+'.includes(k)||k==='C'||k==='('||k===')'?' op':'')+(k==='='?' eq':'');b.textContent=k;
+  b.onclick=()=>k==='⌫'?back():press(k);$('keys').appendChild(b)});
+[['sin','sin('],['cos','cos('],['tan','tan('],['sin⁻¹','asin('],['cos⁻¹','acos('],['tan⁻¹','atan('],['log','log('],['ln','ln('],['√','√('],['∛','cbrt('],
+ ['x²','^2'],['xʸ','^'],['n!','!'],['%','%'],['|x|','abs('],['π','π'],['e','e'],['Ans','Ans'],['(',' ('],[')',')']].slice(0,18).forEach(([t,v])=>{
+  const b=document.createElement('button');b.className='k s';b.textContent=t;b.onclick=()=>press(v.trim()===''?v:v);$('sci').appendChild(b)});
+$('sciBtn').onclick=()=>{const h=$('sci').classList.toggle('hide');$('modeTxt').textContent=h?'Basic':'Scientific';$('sciBtn').textContent=h?'Scientific':'Basic'};
+$('degBtn').onclick=()=>{deg=!deg;$('degBtn').textContent=deg?'DEG':'RAD'};
+document.addEventListener('keydown',e=>{
+  if(['INPUT','SELECT'].includes(document.activeElement.tagName)||$('calc').classList.contains('hide'))return;
+  const k=e.key;
+  if(/^[0-9.()+^%!]$/.test(k))press(k);else if(k==='-')press('−');else if(k==='*')press('×');else if(k==='/'){e.preventDefault();press('÷')}
+  else if(k==='Enter'||k==='='){e.preventDefault();press('=')}else if(k==='Backspace')back();else if(k==='Escape')press('C');
+});
+
+/* ---------- NEPALI INTEREST ---------- */
+document.querySelectorAll('.chips button').forEach(b=>b.onclick=()=>{$('iR').value=b.dataset.r});
+$('iGo').onclick=()=>{
+  const P=+$('iP').value,r=+$('iR').value,y=+$('iY').value||0,mo=+$('iM').value||0,d=+$('iD').value||0,t=$('iT').value;
+  let months=y*12+mo+d/30;const f=$('iF').value,e=$('iE').value;
+  if(f&&e){const a=new Date(f),b=new Date(e);
+    if(b<a){$('iOut').innerHTML='<div class="card err">End date must be after start date. / अन्तिम मिति सुरु मितिभन्दा पछि हुनुपर्छ।</div>';return}
+    let m=(b.getFullYear()-a.getFullYear())*12+b.getMonth()-a.getMonth(),x=new Date(a);x.setMonth(x.getMonth()+m);
+    if(x>b){m--;x=new Date(a);x.setMonth(x.getMonth()+m)}
+    const dd=Math.round((b-x)/864e5);months=m+dd/30;$('iY').value=Math.floor(m/12);$('iM').value=m%12;$('iD').value=dd;}
+  if(!(P>0)||!(r>=0)||!(months>0)){$('iOut').innerHTML='<div class="card err">Enter principal, rate and time. / मूलधन, दर र अवधि हाल्नुहोस्।</div>';return}
+  let total;
+  if(t==='s')total=P+P*r/100*months;
+  else if(t==='cm')total=P*Math.pow(1+r/100,months);
+  else total=P*Math.pow(1+r*12/100,months/12);
+  const intr=total-P,pct=intr/total*100;
+  $('iOut').innerHTML=
+   `<div class="card"><span>Principal / मूलधन</span><b>${rs(P)}</b></div>
+    <div class="card"><span>Monthly interest / मासिक ब्याज</span><b>${rs(P*r/100)}</b></div>
+    <div class="card"><span>Time / अवधि</span><b>${fmt(months)} months / महिना</b></div>
+    <div class="card"><span>Interest / ब्याज</span><b>${rs(intr)}</b></div>
+    <div class="card big"><span>Total / जम्मा (मूलधन+ब्याज)</span><b>${rs(total)}</b></div>
+    <div class="bar" aria-hidden="true"><i style="width:${100-pct}%;background:var(--acc)"></i><i style="width:${pct}%;background:#e0a526"></i></div>
+    <div class="note">Rate per year / वार्षिक दर: ${fmt(r*12)}%</div>`;
+  setCur('int','Nepali interest',[['Principal',P],['Rate (Rs per 100 per month)',r],['Months',+months.toFixed(2)],['Type',$('iT').selectedOptions[0].text],['Interest',Math.round(intr)],['Total',Math.round(total)]]);
+};
+
+/* ---------- SIP ---------- */
+let sipRows=[],sipSum=[];
+$('sGo').onclick=()=>{
+  let a=+$('sA').value,R=+$('sR').value,Y=Math.floor(+$('sY').value),su=+$('sS').value||0;
+  if(!(a>0)||!(R>=0)||!(Y>0)){$('sOut').innerHTML='<div class="card err">Enter amount, return and years. / रकम, प्रतिफल र वर्ष हाल्नुहोस्।</div>';return}
+  const i=R/1200;let bal=0,inv=0;sipRows=[];
+  for(let m=1;m<=Y*12;m++){
+    if(m>1&&(m-1)%12===0)a*=1+su/100;
+    bal=(bal+a)*(1+i);inv+=a;
+    if(m%12===0)sipRows.push([m/12,Math.round(a),Math.round(inv),Math.round(bal-inv),Math.round(bal)]);
+  }
+  const gain=bal-inv;
+  sipSum=[['Monthly SIP (start)',+$('sA').value],['Return % per year',R],['Years',Y],['Yearly step-up %',su],['Total invested',Math.round(inv)],['Estimated returns',Math.round(gain)],['Maturity value',Math.round(bal)]];
+  $('sOut').innerHTML=
+   `<div class="card"><span>Invested / लगानी</span><b>${rs(inv)}</b></div>
+    <div class="card"><span>Returns / प्रतिफल</span><b>${rs(gain)}</b></div>
+    <div class="card big"><span>Maturity / कुल रकम</span><b>${rs(bal)}</b></div>
+    <div class="bar" aria-hidden="true"><i style="width:${inv/bal*100}%;background:var(--acc)"></i><i style="width:${gain/bal*100}%;background:#e0a526"></i></div>
+    <div class="note">Green = invested, yellow = returns. Installment at start of each month.</div>`;
+  $('sTw').innerHTML='<table><tr><th>Year</th><th>SIP/mo</th><th>Invested</th><th>Returns</th><th>Value</th></tr>'+
+    sipRows.map(r=>`<tr>${r.map((c,k)=>`<td>${k?fmt(c):c}</td>`).join('')}</tr>`).join('')+'</table>';
+  $('sTw').classList.remove('hide');
+  setCur('sip','SIP',sipSum,['Year','SIP per month','Total invested','Returns','Value'],sipRows);
+};
+$('sXl').onclick=()=>{
+  if(typeof XLSX==='undefined'){alert('Excel library could not load. Check internet connection.');return}
+  const wb=XLSX.utils.book_new();
+  const s1=XLSX.utils.aoa_to_sheet([['SIP Summary'],...sipSum]);s1['!cols']=[{wch:24},{wch:16}];
+  const s2=XLSX.utils.aoa_to_sheet([['Year','SIP per month','Total invested','Returns','Value'],...sipRows]);s2['!cols']=Array(5).fill({wch:16});
+  XLSX.utils.book_append_sheet(wb,s1,'Summary');XLSX.utils.book_append_sheet(wb,s2,'Yearly');
+  XLSX.writeFile(wb,'SIP-calculation.xlsx');
+};
+
+/* ---------- EMI ---------- */
+$('eGo').onclick=()=>{
+  const P=+$('eP').value,R=+$('eR').value,n=Math.round((+$('eY').value)*12);
+  if(!(P>0)||!(R>=0)||!(n>0)){$('eOut').innerHTML='<div class="card err">Enter amount, rate and years. / रकम, दर र वर्ष हाल्नुहोस्।</div>';return}
+  const r=R/1200,E=r?P*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1):P/n;let b=P;const rows=[];
+  for(let m=1;m<=n;m++){const i=b*r,p=E-i;b=Math.max(0,b-p);rows.push([m,Math.round(E),Math.round(i),Math.round(p),Math.round(b)])}
+  const tot=E*n,ti=tot-P;
+  $('eOut').innerHTML=`<div class="card big"><span>Monthly EMI / मासिक किस्ता</span><b>${rs(E)}</b></div>
+   <div class="card"><span>Total interest / कुल ब्याज</span><b>${rs(ti)}</b></div>
+   <div class="card"><span>Total payment / कुल भुक्तानी</span><b>${rs(tot)}</b></div>
+   <div class="bar" aria-hidden="true"><i style="width:${P/tot*100}%;background:var(--acc)"></i><i style="width:${ti/tot*100}%;background:#e0a526"></i></div>`;
+  $('eTw').innerHTML='<table><tr><th>Month</th><th>EMI</th><th>Interest</th><th>Principal</th><th>Balance</th></tr>'+rows.map(x=>'<tr>'+x.map((c,k)=>'<td>'+(k?fmt(c):c)+'</td>').join('')+'</tr>').join('')+'</table>';
+  $('eTw').classList.remove('hide');
+  setCur('emi','Loan EMI',[['Loan',P],['Rate % per year',R],['Months',n],['EMI',Math.round(E)],['Total interest',Math.round(ti)],['Total payment',Math.round(tot)]],['Month','EMI','Interest','Principal','Balance'],rows);
+};
+
+/* ---------- HISTORY ---------- */
+const HK='hisab_hist';
+function hist2(){try{return JSON.parse(localStorage.getItem(HK)||'[]')}catch(e){return[]}}
+function logH(t,x){try{const h=hist2();h.unshift({t,x,d:new Date().toLocaleString()});localStorage.setItem(HK,JSON.stringify(h.slice(0,100)))}catch(e){}}
+function drawH(){const h=hist2();$('hl').innerHTML=h.map(r=>'<div class="hr"><span class="note">'+r.d+' · '+r.t+'</span>\n<b>'+r.x+'</b></div>').join('')||'<div class="note">No history yet. / इतिहास खाली छ।</div>'}
+$('hClr').onclick=()=>{try{localStorage.removeItem(HK)}catch(e){}drawH()};
+
+/* ---------- BS <-> AD ---------- */
+//BS-START
+const BSD='132321110102223222101011223321101011232321110012132321110102223222101011223321101011232321110012222322011002223222101011223321101011232321110012222322011011223222101011223321101011232321110012222322011011223222101011232321101011232321110102222322101011223222101011232321110011232321110102222322101011223222101011232321110012132321110102223222101011223231101011232321110012132321110102223222101011223321101011232321110012132322011002223222101011223321101011232321110012222322011011223222101011223321101011232321110012222322011011223222101011232321101011232321110012222322101011223222101011232321110011232321110102222322101011223222101011232321110011232321110102223222101011223231101011232321110012132321110102223222101011223321101011232321110012132322010102223222101011223321101011232321110012222322011002223222101011223321101011232321110012222322011011223222101011232321101011232321110012222322101011223222101011232321110011232321110102222322101011223222101011232321110011232321110102223222101011223222101011232321110012132321110102223222101011223222110111123312110111132321110111132321110111';
+const bsLen=(y,m)=>29+ +BSD[(y-2000)*12+m-1];
+const REF=Date.UTC(1943,3,14);
+function bs2ad(y,m,d){let n=d-1;for(let k=2000;k<y;k++)for(let j=1;j<=12;j++)n+=bsLen(k,j);for(let j=1;j<m;j++)n+=bsLen(y,j);return new Date(REF+n*864e5)}
+function ad2bs(dt){let n=Math.round((Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate())-REF)/864e5);if(n<0)return null;let y=2000;
+  for(;y<=2090;y++){let L=0;for(let j=1;j<=12;j++)L+=bsLen(y,j);if(n<L)break;n-=L}
+  if(y>2090)return null;let m=1;while(n>=bsLen(y,m)){n-=bsLen(y,m);m++}return[y,m,n+1]}
+//BS-END
+const MN=['Baisakh बैशाख','Jestha जेठ','Asar असार','Shrawan श्रावण','Bhadra भदौ','Aswin असोज','Kartik कार्तिक','Mangsir मंसिर','Poush पौष','Magh माघ','Falgun फागुन','Chaitra चैत'];
+const WD=['Sunday आइतबार','Monday सोमबार','Tuesday मंगलबार','Wednesday बुधबार','Thursday बिहीबार','Friday शुक्रबार','Saturday शनिबार'];
+$('dM').innerHTML=MN.map((x,i)=>`<option value="${i+1}">${i+1} - ${x}</option>`).join('');
+(()=>{const t=new Date(),b=ad2bs(t);if(b){$('dY').value=b[0];$('dM').value=b[1];$('dD').value=b[2]}$('dA').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')})();
+const iso=d=>d.toISOString().slice(0,10);
+function dOut(a,b,w){$('dOut').innerHTML=`<div class="card"><span>From / बाट</span><b>${nd(a)}</b></div><div class="card big"><span>To / मा</span><b>${nd(b)}</b></div><div class="card"><span>Weekday / बार</span><b>${w}</b></div>`;setCur('date','Date converter',[['From',a],['To',b],['Weekday',w]])}
+const dErr=()=>{$('dOut').innerHTML='<div class="card err">Date not valid or out of range (BS 2000–2090). / मिति मिलेन।</div>'};
+$('dGo1').onclick=()=>{const y=+$('dY').value,m=+$('dM').value,d=+$('dD').value;
+  if(!(y>=2000&&y<=2090)||!(d>=1&&d<=bsLen(y,m)))return dErr();
+  const a=bs2ad(y,m,d);dOut(`BS ${y}-${m}-${d} (${MN[m-1]})`,'AD '+iso(a),WD[a.getUTCDay()])};
+$('dGo2').onclick=()=>{const v=$('dA').value;if(!v)return dErr();const p=v.split('-').map(Number),b=ad2bs(new Date(p[0],p[1]-1,p[2]));
+  if(!b)return dErr();dOut('AD '+v,`BS ${b[0]}-${b[1]}-${b[2]} (${MN[b[1]-1]})`,WD[new Date(Date.UTC(p[0],p[1]-1,p[2])).getUTCDay()])};
+
+/* ---------- UNITS ---------- */
+const A1=5476*.09290304;
+const U={len:{n:'Distance / दूरी',u:{mm:.001,cm:.01,m:1,km:1000,inch:.0254,ft:.3048,yard:.9144,mile:1609.344}},
+ mass:{n:'Weight / तौल',u:{mg:1e-6,g:.001,kg:1,quintal:100,tonne:1000,oz:.028349523125,lb:.45359237,tola:.011663804}},
+ area:{n:'Area / क्षेत्रफल',u:{'sq m':1,'sq ft':.09290304,'sq km':1e6,hectare:1e4,ropani:A1,aana:A1/16}},
+ energy:{n:'Energy / ऊर्जा',u:{J:1,kJ:1000,cal:4.184,kcal:4184,Wh:3600,kWh:3.6e6,MJ:1e6,BTU:1055.056,'ft·lbf':1.3558179483,eV:1.602176634e-19}},
+ temp:{n:'Temperature / तापक्रम',u:{'°C':0,'°F':0,K:0}}};
+function conv(c,v,f,t){if(c==='temp'){const C=f==='°C'?v:f==='°F'?(v-32)*5/9:v-273.15;return t==='°C'?C:t==='°F'?C*9/5+32:C+273.15}return v*U[c].u[f]/U[c].u[t]}
+$('uC').innerHTML=Object.keys(U).map(k=>`<option value="${k}">${U[k].n}</option>`).join('');
+const toB=(c,v,u)=>c==='temp'?(u==='°C'?v:u==='°F'?(v-32)*5/9:v-273.15):v*U[c].u[u];
+const fromB=(c,b,u)=>c==='temp'?(u==='°C'?b:u==='°F'?b*9/5+32:b+273.15):b/U[c].u[u];
+let uTm;
+function uFill(){const c=$('uC').value,ks=Object.keys(U[c].u);
+  $('uL').innerHTML=ks.map(k=>`<div class="slab"><input data-u="${k}" type="number" inputmode="decimal" step="any" aria-label="${k}"><b style="align-self:center">${k}</b></div>`).join('');
+  const ins=[...$('uL').querySelectorAll('input')];
+  ins.forEach(inp=>inp.oninput=()=>{const v=parseFloat(inp.value);
+    ins.forEach(o=>{if(o!==inp)o.value=isNaN(v)?'':+fromB(c,toB(c,v,inp.dataset.u),o.dataset.u).toPrecision(8)});
+    clearTimeout(uTm);if(isNaN(v))return;
+    uTm=setTimeout(()=>logH('Unit',v+' '+inp.dataset.u+' = '+ins.filter(o=>o!==inp).slice(0,3).map(o=>o.value+' '+o.dataset.u).join(' = ')),1500)});
+  const d=ins[Math.min(2,ins.length-1)];d.value=1;d.oninput()}
+$('uC').onchange=uFill;uFill();
+
+/* ---------- GEOMETRY ---------- */
+const P=Math.PI,d2r=x=>x*P/180;
+const SH={circle:{n:'Circle / वृत्त',f:['r'],c:v=>[['Area',P*v.r*v.r],['Circumference',2*P*v.r],['Diameter',2*v.r]]},
+square:{n:'Square / वर्ग',f:['a'],c:v=>[['Area',v.a*v.a],['Perimeter',4*v.a],['Diagonal',v.a*Math.SQRT2]]},
+rect:{n:'Rectangle / आयत',f:['l','w'],c:v=>[['Area',v.l*v.w],['Perimeter',2*(v.l+v.w)],['Diagonal',Math.hypot(v.l,v.w)]]},
+tri:{n:'Triangle base-height / त्रिभुज',f:['b','h'],c:v=>[['Area',v.b*v.h/2]]},
+tri3:{n:'Triangle 3 sides (Heron)',f:['a','b','c'],c:v=>{const s=(v.a+v.b+v.c)/2,A=s*(s-v.a)*(s-v.b)*(s-v.c);return A>0?[['Area',Math.sqrt(A)],['Perimeter',2*s]]:null}},
+trap:{n:'Trapezoid / ट्रापेजियम',f:['a','b','h'],c:v=>[['Area',(v.a+v.b)*v.h/2]]},
+cube:{n:'Cube / घन',f:['a'],c:v=>[['Volume',v.a**3],['Surface area',6*v.a*v.a],['Diagonal',v.a*Math.sqrt(3)]]},
+cuboid:{n:'Cuboid / घनाभ',f:['l','w','h'],c:v=>[['Volume',v.l*v.w*v.h],['Surface area',2*(v.l*v.w+v.w*v.h+v.l*v.h)],['Diagonal',Math.sqrt(v.l*v.l+v.w*v.w+v.h*v.h)]]},
+cyl:{n:'Cylinder / बेलना',f:['r','h'],c:v=>[['Volume',P*v.r*v.r*v.h],['Curved area',2*P*v.r*v.h],['Total area',2*P*v.r*(v.r+v.h)]]},
+cone:{n:'Cone / शंकु',f:['r','h'],c:v=>{const l=Math.hypot(v.r,v.h);return[['Slant height',l],['Volume',P*v.r*v.r*v.h/3],['Total area',P*v.r*(v.r+l)]]}},
+sph:{n:'Sphere / गोला',f:['r'],c:v=>[['Volume',4/3*P*v.r**3],['Surface area',4*P*v.r*v.r]]},
+rt:{n:'Right triangle: sides a, b',f:['a','b'],c:v=>{const c=Math.hypot(v.a,v.b),A=Math.atan(v.a/v.b)*180/P;return[['Hypotenuse c',c],['Angle A °',A],['Angle B °',90-A],['Area',v.a*v.b/2],['Perimeter',v.a+v.b+c]]}},
+rta:{n:'Right triangle: hypotenuse c, angle A°',f:['c','A'],c:v=>{if(v.A>=90)return null;const a=v.c*Math.sin(d2r(v.A)),b=v.c*Math.cos(d2r(v.A));return[['Side a (opposite A)',a],['Side b',b],['Angle B °',90-v.A],['Area',a*b/2]]}}};
+const FL={r:'r radius / अर्ध्यास',a:'a',b:'b',c:'c',l:'l length / लम्बाइ',w:'w width / चौडाइ',h:'h height / उचाइ',A:'A angle ° / कोण'};
+$('gS').innerHTML=Object.keys(SH).map(k=>`<option value="${k}">${SH[k].n}</option>`).join('');
+function gFill(){$('gF').innerHTML=SH[$('gS').value].f.map(f=>`<label>${FL[f]}</label><input id="g_${f}" type="number" inputmode="decimal" min="0" step="any">`).join('');$('gO').innerHTML=''}
+$('gS').onchange=gFill;gFill();
+$('gGo').onclick=()=>{const sh=SH[$('gS').value],v={};
+  for(const f of sh.f){v[f]=+$('g_'+f).value;if(!(v[f]>0)){$('gO').innerHTML='<div class="card err">Enter all values above 0. / सबै मान ० भन्दा ठूला हाल्नुहोस्।</div>';return}}
+  const r=sh.c(v);if(!r){$('gO').innerHTML='<div class="card err">These values cannot make this shape. / यी मानले आकृति बन्दैन।</div>';return}
+  $('gO').innerHTML=r.map((x,i)=>`<div class="card${i?'':' big'}"><span>${x[0]}</span><b>${fmt(+x[1].toPrecision(10))}</b></div>`).join('');
+  setCur('geo',sh.n.split(' /')[0],[...sh.f.map(f=>['Input '+f,v[f]]),...r.map(x=>[x[0],+x[1].toPrecision(10)])])};
+
+/* ---------- INSTALL / SHARE ---------- */
+let dp;addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;$('inst').classList.remove('hide')});
+$('inst').onclick=()=>{if(dp){dp.prompt();dp=null;$('inst').classList.add('hide')}};
+if(/iphone|ipad/i.test(navigator.userAgent)&&!navigator.standalone)$('ios').classList.remove('hide');
+$('shr').onclick=()=>{const u=location.href.split('#')[0],t='Hisab Calculator — सैकडा ब्याज, SIP, EMI, मिति, नाप';if(navigator.share)navigator.share({title:t,url:u}).catch(()=>{});else window.open('https://wa.me/?text='+encodeURIComponent(t+' '+u))};
+
+show((location.hash||'').slice(1));
+if('serviceWorker' in navigator&&location.protocol.startsWith('http'))navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+</script>
+</body>
+</html>
