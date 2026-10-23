@@ -12,10 +12,62 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Devanagari:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#0f6b5c">
 <script>
-window.__dp=null;
-try{if(localStorage.getItem('hisab_pin'))document.documentElement.classList.add('locked')}catch(e){}
-addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__dp=e});
-if('serviceWorker' in navigator&&location.protocol.indexOf('http')===0)addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
+window.__dp = null;
+
+try {
+  if (localStorage.getItem('hisab_pin')) document.documentElement.classList.add('locked');
+} catch(e) {}
+
+// Catch Chrome's native install prompt event
+addEventListener('beforeinstallprompt', function(e) {
+  e.preventDefault();
+  window.__dp = e;
+  
+  // Show the top installation banner when ready
+  var instBar = document.getElementById('instBar');
+  if (instBar) instBar.classList.remove('hide');
+});
+
+// Register Service Worker
+if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+  addEventListener('load', function() {
+    navigator.serviceWorker.register('sw.js').catch(function(){});
+  });
+}
+
+// Attach event listeners when DOM loads
+document.addEventListener('DOMContentLoaded', function() {
+  var instGo = document.getElementById('instGo');
+  var instX = document.getElementById('instX');
+  var instBar = document.getElementById('instBar');
+  var instHelp = document.getElementById('instHelp');
+
+  // Trigger Chrome's direct 1-click install popup on tap
+  if (instGo) {
+    instGo.addEventListener('click', async function() {
+      if (window.__dp) {
+        window.__dp.prompt();
+        var choice = await window.__dp.userChoice;
+        if (choice.outcome === 'accepted') {
+          if (instBar) instBar.classList.add('hide');
+          if (instHelp) instHelp.classList.add('hide');
+        }
+        window.__dp = null;
+      } else {
+        // Fallback: only show yellow instructions if direct install isn't supported
+        if (instHelp) instHelp.classList.toggle('hide');
+      }
+    });
+  }
+
+  // Handle closing banner when tapping 'X'
+  if (instX) {
+    instX.addEventListener('click', function() {
+      if (instBar) instBar.classList.add('hide');
+      if (instHelp) instHelp.classList.add('hide');
+    });
+  }
+});
 </script>
 <title>Hisab Calculator | हिसाब क्याल्कुलेटर</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -154,7 +206,7 @@ footer{margin-top:22px}
    <button class="tile" data-t="int"><span class="i">💰</span><span class="en">Byaj</span><br class="en"><small class="ne">ब्याज (सैकडा)</small></button>
    <button class="tile" data-t="sip"><span class="i">📈</span><span class="en">SIP</span><br class="en"><small class="ne">एसआईपी</small></button>
    <button class="tile" data-t="emi"><span class="i">🏦</span><span class="en">EMI</span><br class="en"><small class="ne">किस्ता (ऋण)</small></button>
-   <button class="tile" data-t="fins"><span class="i">💼</span><span class="en">Finance Tools</span><br class="en"><small class="ne">वित्तीय औजार</small></button></div><div class="sec-h">Daily Accounts / दैनिक खाता</div><div class="grid"><button class="tile" data-t="ledger"><span class="i">📒</span><span class="en">Income & Expense</span><br class="en"><small class="ne">आम्दानी-खर्च</small></button>
+   <button class="tile" data-t="fins"><span class="i">💼</span><span class="en">Finance Tools</span><br class="en"><small class="ne">वित्तीय औजार</small></button></div><div class="sec-h">Daily Accounts / दैनिक खाता</div><div class="grid"><button class="tile" data-t="ledger"><span class="i">📒</span><span class="en">Income & Expense</span><br class="ne">आम्दानी-खर्च</small></button>
    <button class="tile" data-t="notes"><span class="i">📝</span><span class="en">Notes & Khata</span><br class="en"><small class="ne">खाता / टिपोट</small></button>
    <button class="tile" data-t="rem"><span class="i">⏰</span><span class="en">Reminders</span><br class="en"><small class="ne">रिमाइन्डर</small></button>
    <button class="tile" id="hGold"><span class="i">🪙</span><span class="en">Gold & Silver</span><br class="en"><small class="ne">सुन-चाँदी</small></button></div><div class="sec-h">Converters & Tools / कन्भर्टर र औजार</div><div class="grid"><button class="tile" data-t="convs"><span class="i">🔄</span><span class="en">Converters</span><br class="en"><small class="ne">कन्भर्टर</small></button>
@@ -380,550 +432,14 @@ Special angles (sin, cos, tan):
  60°: √3/2, ½, √3
  90°: 1, 0, undefined</pre></details>
   </section>
-  <section id="hist" class="panel hide"><div id="hl"></div><button class="k s" id="hClr" style="padding:6px 10px;margin-top:8px">Clear history / इतिहास हटाउनुहोस्</button></section>
+  <section><div></div></section>
 
-  <div class="acts g3 hide" id="acts"><button id="aXl">Excel</button><button id="aPr">Print</button><button id="aPd">PDF</button><button id="aRc" class="hide">Receipt / रसिद</button><button id="aSv" class="hide">Save / सुरक्षित</button></div>
-  <details id="recs" class="hide"><summary>Saved records / सुरक्षित हिसाब</summary><div id="rl"></div><button class="k s" id="rClr" style="padding:6px 10px;margin-top:6px">Clear all / सबै हटाउनुहोस्</button></details>
-  <div id="shRow"><div class="g2" style="margin-top:10px"><button class="go alt" id="shr">Share / पठाउनुहोस्</button></div></div>
-  <div class="ad" id="ad"><!-- Paste your Google AdSense code here after approval --></div>
-  <div id="rcpt"></div>
-  <footer id="foot">Results are estimates only, not financial advice. / नतिजा अनुमानित मात्र हो, लगानी सल्लाह होइन।</footer>
+  <div></div>
+  <details><summary>Saved records / सुरक्षित हिसाब</summary><div></div></details>
+  <div><div></div></div>
+  <div></div>
+  <div></div>
+  <footer>Results are estimates only, not financial advice. / नतिजा अनुमानित मात्र हो, लगानी सल्लाह होइन।</footer>
 </div>
-
-<script>
-const BRAND={name:'Hisab Calculator | हिसाब',contact:'',affiliateText:'',affiliateUrl:''}; // edit for each cooperative / customer
-const $=id=>document.getElementById(id);
-let NP=false;const nd=s=>NP?String(s).replace(/[0-9]/g,d=>'०१२३४५६७८९'[d]):s;
-const fmt=n=>nd(isFinite(n)?Number(n).toLocaleString('en-IN',{maximumFractionDigits:2}):'—');
-const rs=n=>'Rs '+fmt(n);
-
-/* theme */
-$('theme').onclick=()=>{const r=document.documentElement,d=r.dataset.theme==='dark';r.dataset.theme=d?'light':'dark';$('theme').textContent=d?'🌙':'☀️';try{localStorage.setItem('hisab_theme',r.dataset.theme)}catch(e){}};
-
-/* tabs */
-const TABS=['home','ledger','bak','sec','acct','notes','rem','fins','fin','calc','int','sip','emi','convs','unit','date','geo','hist'],TT={home:'Hisab Calculator',ledger:'Income & Expense / आम्दानी-खर्च',bak:'Backup / ब्याकअप',sec:'Security / सुरक्षा',acct:'Account / खाता',notes:'Notes / नोट',rem:'Reminders / रिमाइन्डर',fins:'Finance Tools / वित्तीय औजार',fin:'Finance',convs:'Converters / कन्भर्टर',date:'BS to AD Date Converter',unit:'Unit Converter',geo:'Formulas: Area, Perimeter, Linear Algebra, Trigonometry',hist:'History',calc:'Scientific Calculator',int:'Saikada Byaj Calculator (सैकडा ब्याज)',sip:'SIP Calculator Nepal',emi:'Loan EMI Calculator'};
-const cur={};let tab='home',UT='Converter',FX=null,FTT='';
-function show(t){if(!TABS.includes(t))t='home';tab=t;
-  TABS.forEach(x=>$(x).classList.toggle('hide',x!==t));
-  $('bar').classList.toggle('hide',t==='home');$('shRow').classList.toggle('hide',t!=='home');$('ttl').textContent=t==='unit'?UT:t==='fin'?FTT:(TT[t]||'');
-  if(t==='hist')drawH();if(t==='sec')secDraw();if(t==='ledger')drawL();if(t==='bak')bkDraw();if(t==='acct')acctDraw(FB&&FB.currentUser);if(t==='notes')drawN();if(t==='rem')drawR();if(t==='home'){banner();badge()}document.title=(TT[t]||'')+' | '+BRAND.name;
-  $('acts').classList.toggle('hide',!((t==='sip'||t==='emi'||t==='fin')&&cur[t]&&(t!=='fin'||cur.fin.rows)));
-  try{history.replaceState(null,'','#'+t)}catch(e){}window.scrollTo(0,0)}
-document.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>show(b.dataset.t));
-$('back').onclick=()=>show((tab==='unit'||tab==='date')?'convs':tab==='fin'?'fins':'home');
-$('brand').textContent=BRAND.name;
-if(BRAND.contact||BRAND.affiliateUrl)$('foot').innerHTML+='<br>'+BRAND.contact+(BRAND.affiliateUrl?' <a href="'+BRAND.affiliateUrl+'" target="_blank" rel="sponsored noopener">'+BRAND.affiliateText+'</a>':'');
-function setCur(t,title,lines,head,rows,nolog){cur[t]={title,lines,head,rows};if(!nolog)logH(title,lines.map(x=>x[0]+': '+x[1]).join('\n'));if(tab===t&&(t==='sip'||t==='emi'||(t==='fin'&&rows)))$('acts').classList.remove('hide')}
-$('aXl').onclick=()=>{const c=cur[tab];if(!c)return;if(typeof XLSX==='undefined'){alert('Excel library could not load. Check internet.');return}
-  const wb=XLSX.utils.book_new(),a=XLSX.utils.aoa_to_sheet([[c.title],...c.lines]);a['!cols']=[{wch:30},{wch:20}];XLSX.utils.book_append_sheet(wb,a,'Summary');
-  if(c.rows){const b=XLSX.utils.aoa_to_sheet([c.head,...c.rows]);b['!cols']=Array(c.head.length).fill({wch:16});XLSX.utils.book_append_sheet(wb,b,'Schedule')}
-  XLSX.writeFile(wb,c.title.replace(/\W+/g,'-')+'.xlsx')};
-$('aPr').onclick=()=>window.print();
-$('aPd').onclick=()=>{const c=cur[tab];if(!c||!c.rows)return;if(!window.jspdf){alert('PDF library could not load. Check internet.');return}
-  const doc=new window.jspdf.jsPDF();let y=18;doc.setFontSize(16);doc.text(c.title+' Calculation',14,y);y+=10;doc.setFontSize(11);
-  c.lines.forEach(l=>{doc.text(l[0]+': '+l[1],14,y);y+=7});y+=5;doc.setFont(undefined,'bold');doc.text(c.head.join('   |   '),14,y);doc.setFont(undefined,'normal');y+=7;
-  c.rows.forEach(r=>{if(y>280){doc.addPage();y=18}doc.text(r.join('   |   '),14,y);y+=6});
-  doc.text('Estimate only, not financial advice.',14,Math.min(y+8,290));doc.save(c.title.replace(/\W+/g,'-')+'.pdf')};
-const RK='hisab_records';
-function recs(){try{return JSON.parse(localStorage.getItem(RK)||'[]')}catch(e){return[]}}
-function drawRecs(){$('rl').innerHTML=recs().map(r=>'<div class="r"><b>'+r.t+'</b> ('+r.d+')\n'+r.l+'</div>').join('')||'<div class="note">Nothing saved yet. / केही सुरक्षित छैन।</div>'}
-$('aSv').onclick=()=>{const c=cur[tab];if(!c)return;try{const r=recs();r.unshift({t:c.title,d:new Date().toLocaleString(),l:c.lines.map(x=>x[0]+': '+x[1]).join('\n')});localStorage.setItem(RK,JSON.stringify(r.slice(0,30)));drawRecs();
-$('aRc').onclick=()=>{const c=cur[tab];if(!c)return;const n=(prompt('Customer name / ग्राहकको नाम','')||'').replace(/</g,'&lt;');
-  $('rcpt').innerHTML='<h2>'+BRAND.name+'</h2><p>Date / मिति: '+new Date().toLocaleDateString()+'<br>Customer / ग्राहक: '+n+'</p><h3>'+c.title+'</h3><table>'+c.lines.map(x=>'<tr><td>'+x[0]+'</td><td>'+(typeof x[1]==='number'?fmt(x[1]):x[1])+'</td></tr>').join('')+'</table><p style="margin-top:60px">Customer sign / ग्राहकको सही: ________ &nbsp;&nbsp; Authorized sign / अधिकृत सही: ________</p><p style="font-size:12px">Estimate only. / अनुमानित हिसाब।</p>';
-  document.body.classList.add('rc');window.print();setTimeout(()=>document.body.classList.remove('rc'),800)};
-$('npd').onclick=()=>{NP=!NP;$('npd').textContent=NP?'0123':'०१२३';const g={int:'iGo',sip:'sGo',emi:'eGo'};for(const t in g)if(cur[t])$(g[t]).click();drawL()};$('recs').open=true}catch(e){alert('Could not save in this browser.')}};
-$('rClr').onclick=()=>{try{localStorage.removeItem(RK)}catch(e){}drawRecs()};
-drawRecs();
-
-/* ---------- CALCULATOR ---------- */
-let expr='',deg=true,last='0',hist=[],jEq=false;
-const toR=x=>deg?x*Math.PI/180:x, fromR=x=>deg?x*180/Math.PI:x;
-const F={sin:x=>{const r=Math.sin(toR(x));return Math.abs(r)<1e-12?0:r},cos:x=>{const r=Math.cos(toR(x));return Math.abs(r)<1e-12?0:r},tan:x=>Math.tan(toR(x)),
-  asin:x=>fromR(Math.asin(x)),acos:x=>fromR(Math.acos(x)),atan:x=>fromR(Math.atan(x)),
-  log:Math.log10,ln:Math.log,sqrt:Math.sqrt,cbrt:Math.cbrt,abs:Math.abs,
-  fact:n=>{if(n<0||n%1||n>170)return NaN;let r=1;for(let i=2;i<=n;i++)r*=i;return r}};
-const names=Object.keys(F).sort((a,b)=>b.length-a.length);
-function evaluate(e){
-  let s=e.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-').replace(/π/g,'(Math.PI)').replace(/\be\b/g,'(Math.E)')
-    .replace(/√\(/g,'sqrt(').replace(/\^/g,'**').replace(/%/g,'/100').replace(/Ans/g,'('+last+')');
-  s=s.replace(/(\d+(?:\.\d+)?|\))!/g,(m,a)=>'fact('+a+')');
-  names.forEach(n=>{s=s.replace(new RegExp('\\b'+n+'\\(','g'),'F.'+n+'(')});
-  const chk=s.replace(/F\.[a-z0-9]+/g,'').replace(/Math\.(PI|E)/g,'');
-  if(/[a-zA-Z_$]/.test(chk))throw Error('bad');
-  const open=(s.match(/\(/g)||[]).length,close=(s.match(/\)/g)||[]).length;
-  s+=')'.repeat(Math.max(0,open-close));
-  const v=Function('F','"use strict";return ('+s+')')(F);
-  if(typeof v!=='number'||!isFinite(v))throw Error('math');
-  return +v.toPrecision(12);
-}
-function draw(){$('expr').textContent=expr;}
-function press(v){
-  if(v==='C'){jEq=false;expr='';$('res').textContent='0';}
-  else if(v==='⌫'){expr=expr.replace(/(sin|cos|tan|asin|acos|atan|log|ln|sqrt|cbrt|abs|Ans)?\(?.$/,m=>'').slice(0)||'';expr=expr; }
-  else if(v==='='){
-    if(!expr)return;
-    try{const r=evaluate(expr);hist.unshift(expr+' = '+fmt(r));logH('Calculator',expr+' = '+fmt(r));hist=hist.slice(0,5);last=String(r);jEq=true;$('res').textContent=fmt(r);expr='';renderHist();}
-    catch(e){$('res').innerHTML='<span class="err">Error</span>';}
-  }else{
-    if(jEq){if(/^[+×÷−\^%!]$/.test(v))expr=last;jEq=false}else if(!expr&&/^[×÷+\^%!]/.test(v)&&last!=='0')expr='Ans';
-    expr+=v;
-    try{if(!/[+\-×÷−^(]$/.test(expr))$('res').textContent=fmt(evaluate(expr));}catch(e){}
-  }
-  draw();
-}
-/* backspace done simply */
-function back(){expr=expr.replace(/(asin|acos|atan|sin|cos|tan|log|ln|sqrt|cbrt|abs|Ans)\($|Ans$|.$/,'');draw();}
-function renderHist(){$('hist').innerHTML=hist.map((h,i)=>`<div data-i="${i}">${h}</div>`).join('');
-  $('hist').querySelectorAll('div').forEach(d=>d.onclick=()=>{expr=hist[d.dataset.i].split(' = ')[0];draw()});}
-const basic=['C','(',')','÷','7','8','9','×','4','5','6','−','1','2','3','+','0','.','⌫','='];
-basic.forEach(k=>{const b=document.createElement('button');b.className='k'+('÷×−+'.includes(k)||k==='C'||k==='('||k===')'?' op':'')+(k==='='?' eq':'');b.textContent=k;
-  b.onclick=()=>k==='⌫'?back():press(k);$('keys').appendChild(b)});
-[['sin','sin('],['cos','cos('],['tan','tan('],['sin⁻¹','asin('],['cos⁻¹','acos('],['tan⁻¹','atan('],['log','log('],['ln','ln('],['√','√('],['∛','cbrt('],
- ['x²','^2'],['xʸ','^'],['n!','!'],['%','%'],['|x|','abs('],['π','π'],['e','e'],['Ans','Ans'],['(',' ('],[')',')']].slice(0,18).forEach(([t,v])=>{
-  const b=document.createElement('button');b.className='k s';b.textContent=t;b.onclick=()=>press(v.trim()===''?v:v);$('sci').appendChild(b)});
-$('sciBtn').onclick=()=>{const h=$('sci').classList.toggle('hide');$('modeTxt').textContent=h?'Basic':'Scientific';$('sciBtn').textContent=h?'Scientific':'Basic'};
-$('degBtn').onclick=()=>{deg=!deg;$('degBtn').textContent=deg?'DEG':'RAD'};
-document.addEventListener('keydown',e=>{
-  if(['INPUT','SELECT'].includes(document.activeElement.tagName)||$('calc').classList.contains('hide'))return;
-  const k=e.key;
-  if(/^[0-9.()+^%!]$/.test(k))press(k);else if(k==='-')press('−');else if(k==='*')press('×');else if(k==='/'){e.preventDefault();press('÷')}
-  else if(k==='Enter'||k==='='){e.preventDefault();press('=')}else if(k==='Backspace')back();else if(k==='Escape')press('C');
-});
-
-/* ---------- NEPALI INTEREST ---------- */
-document.querySelectorAll('.chips button').forEach(b=>b.onclick=()=>{$('iR').value=b.dataset.r});
-$('iGo').onclick=()=>{
-  const P=+$('iP').value,r=+$('iR').value,y=+$('iY').value||0,mo=+$('iM').value||0,d=+$('iD').value||0,t=$('iT').value;
-  let months=y*12+mo+d/30;const fy=+$('iFy').value,ey=+$('iEy').value;
-  if($('iMode').value==='d'){const a=[fy,+$('iFm').value,+$('iFd').value],b=[ey,+$('iEm').value,+$('iEd').value];
-    const ok=x=>x[0]>=2000&&x[0]<=2090&&x[2]>=1&&x[2]<=bsLen(x[0],x[1]);
-    const r=ok(a)&&ok(b)?bsDiff(a,b):null;
-    if(!r){$('iOut').innerHTML='<div class="card err">Check the BS dates (From must be before To; years 2000–2090). / बि.सं. मिति जाँच गर्नुहोस्।</div>';return}
-    months=r[0]+r[1]/30;$('iY').value=Math.floor(r[0]/12);$('iM').value=r[0]%12;$('iD').value=r[1]}
-  const em=!(P>0)?'Enter principal / मूलधन हाल्नुहोस्।':!(r>=0)?'Enter rate / दर हाल्नुहोस्।':'Time is 0. Enter Year/Month/Day, or choose BS dates. / अवधि ० छ। साल/महिना/दिन हाल्नुहोस् वा बि.सं. मिति छान्नुहोस्।';
-  if(!(P>0)||!(r>=0)||!(months>0)){$('iOut').innerHTML='<div class="card err">'+em+'</div>';return}
-  let total;
-  if(t==='s')total=P+P*r/100*months;
-  else if(t==='cm')total=P*Math.pow(1+r/100,months);
-  else total=P*Math.pow(1+r*12/100,months/12);
-  const intr=total-P,pct=intr/total*100;
-  $('iOut').innerHTML=
-   `<div class="card"><span>Principal / मूलधन</span><b>${rs(P)}</b></div>
-    <div class="card"><span>Monthly interest / मासिक ब्याज</span><b>${rs(P*r/100)}</b></div>
-    <div class="card"><span>Time / अवधि</span><b>${fmt(months)} <span class="en">months</span> <span class="ne">महिना</span></b></div>
-    <div class="card"><span>Interest / ब्याज</span><b>${rs(intr)}</b></div>
-    <div class="card big"><span>Total / जम्मा (मूलधन+ब्याज)</span><b>${rs(total)}</b></div>
-    <div class="bar" aria-hidden="true"><i style="width:${100-pct}%;background:var(--acc)"></i><i style="width:${pct}%;background:#e0a526"></i></div>
-    <div class="note"><span class="en">Rate per year: ${fmt(r*12)}%</span> <span class="ne">वार्षिक दर: ${fmt(r*12)}%</span></div>`;
-  setCur('int','Nepali interest',[['Principal',P],['Rate (Rs per 100 per month)',r],['Months',+months.toFixed(2)],['Type',$('iT').selectedOptions[0].text],['Interest',Math.round(intr)],['Total',Math.round(total)]]);
-};
-
-/* ---------- SIP ---------- */
-let sipRows=[],sipSum=[];
-$('sGo').onclick=()=>{
-  let a=+$('sA').value,R=+$('sR').value,Y=Math.floor(+$('sY').value),su=+$('sS').value||0,L=0,IN=+$('sI').value||0;
-  if(!(a>0)||!(R>=0)||!(Y>0)){$('sOut').innerHTML='<div class="card err">Enter amount, return and years. / रकम, प्रतिफल र वर्ष हाल्नुहोस्।</div>';return}
-  const i=R/1200;let bal=L,inv=L;sipRows=[];
-  for(let m=1;m<=Y*12;m++){
-    if(m>1&&(m-1)%12===0)a*=1+su/100;
-    bal=(bal+a)*(1+i);inv+=a;
-    if(m%12===0)sipRows.push([m/12,Math.round(a),Math.round(inv),Math.round(bal-inv),Math.round(bal)]);
-  }
-  const gain=bal-inv;
-  sipSum=[['Monthly SIP (start)',+$('sA').value],['Return % per year',R],['Years',Y],['Yearly step-up %',su],['Total invested',Math.round(inv)],['Estimated returns',Math.round(gain)],['Maturity value',Math.round(bal)],...(IN?[['Value in today money',Math.round(bal/Math.pow(1+IN/100,Y))]]:[])];
-  $('sOut').innerHTML=
-   `<div class="card"><span>Invested / लगानी</span><b>${rs(inv)}</b></div>
-    <div class="card"><span>Returns / प्रतिफल</span><b>${rs(gain)}</b></div>
-    <div class="card big"><span>Maturity / कुल रकम</span><b>${rs(bal)}</b></div>
-    ${IN?`<div class="card"><span>In today money / आजको मूल्यमा (inflation ${IN}%)</span><b>${rs(bal/Math.pow(1+IN/100,Y))}</b></div>`:''}
-   <div class="bar" aria-hidden="true"><i style="width:${inv/bal*100}%;background:var(--acc)"></i><i style="width:${gain/bal*100}%;background:#e0a526"></i></div>
-    <div class="note">Green = invested, yellow = returns. Installment at start of each month.</div>`;
-  $('sTw').innerHTML='<table><tr><th>Year</th><th>SIP/mo</th><th>Invested</th><th>Returns</th><th>Value</th></tr>'+
-    sipRows.map(r=>`<tr>${r.map((c,k)=>`<td>${k?fmt(c):c}</td>`).join('')}</tr>`).join('')+'</table>';
-  $('sTw').classList.remove('hide');
-  setCur('sip','SIP',sipSum,['Year','SIP per month','Total invested','Returns','Value'],sipRows);
-};
-$('sXl').onclick=()=>{
-  if(typeof XLSX==='undefined'){alert('Excel library could not load. Check internet connection.');return}
-  const wb=XLSX.utils.book_new();
-  const s1=XLSX.utils.aoa_to_sheet([['SIP Summary'],...sipSum]);s1['!cols']=[{wch:24},{wch:16}];
-  const s2=XLSX.utils.aoa_to_sheet([['Year','SIP per month','Total invested','Returns','Value'],...sipRows]);s2['!cols']=Array(5).fill({wch:16});
-  XLSX.utils.book_append_sheet(wb,s1,'Summary');XLSX.utils.book_append_sheet(wb,s2,'Yearly');
-  XLSX.writeFile(wb,'SIP-calculation.xlsx');
-};
-
-/* ---------- EMI ---------- */
-$('eGo').onclick=()=>{
-  const P=+$('eP').value,R=+$('eR').value,n=Math.round((+$('eY').value)*12);
-  if(!(P>0)||!(R>=0)||!(n>0)){$('eOut').innerHTML='<div class="card err">Enter amount, rate and years. / रकम, दर र वर्ष हाल्नुहोस्।</div>';return}
-  const r=R/1200,E=r?P*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1):P/n;let b=P;const rows=[];
-  for(let m=1;m<=n;m++){const i=b*r,p=E-i;b=Math.max(0,b-p);rows.push([m,Math.round(E),Math.round(i),Math.round(p),Math.round(b)])}
-  const tot=E*n,ti=tot-P;
-  $('eOut').innerHTML=`<div class="card big"><span>Monthly EMI / मासिक किस्ता</span><b>${rs(E)}</b></div>
-   <div class="card"><span>Total interest / कुल ब्याज</span><b>${rs(ti)}</b></div>
-   <div class="card"><span>Total payment / कुल भुक्तानी</span><b>${rs(tot)}</b></div>
-   <div class="bar" aria-hidden="true"><i style="width:${P/tot*100}%;background:var(--acc)"></i><i style="width:${ti/tot*100}%;background:#e0a526"></i></div>`;
-  $('eTw').innerHTML='<table><tr><th>Month</th><th>EMI</th><th>Interest</th><th>Principal</th><th>Balance</th></tr>'+rows.map(x=>'<tr>'+x.map((c,k)=>'<td>'+(k?fmt(c):c)+'</td>').join('')+'</tr>').join('')+'</table>';
-  $('eTw').classList.remove('hide');
-  setCur('emi','Loan EMI',[['Loan',P],['Rate % per year',R],['Months',n],['EMI',Math.round(E)],['Total interest',Math.round(ti)],['Total payment',Math.round(tot)]],['Month','EMI','Interest','Principal','Balance'],rows);
-};
-
-/* ---------- HISTORY ---------- */
-const HK='hisab_hist';
-function hist2(){try{return JSON.parse(localStorage.getItem(HK)||'[]')}catch(e){return[]}}
-function logH(t,x){try{const h=hist2();h.unshift({t,x,d:new Date().toLocaleString()});localStorage.setItem(HK,JSON.stringify(h.slice(0,100)))}catch(e){}}
-function drawH(){const h=hist2();$('hl').innerHTML=h.map(r=>'<div class="hr"><span class="note">'+r.d+' · '+r.t+'</span>\n<b>'+r.x+'</b></div>').join('')||'<div class="note">No history yet. / इतिहास खाली छ।</div>'}
-$('hClr').onclick=()=>{try{localStorage.removeItem(HK)}catch(e){}drawH()};
-
-/* ---------- BS <-> AD ---------- */
-//BS-START
-const BSD='132321110102223222101011223321101011232321110012132321110102223222101011223321101011232321110012222322011002223222101011223321101011232321110012222322011011223222101011223321101011232321110012222322011011223222101011232321101011232321110102222322101011223222101011232321110011232321110102222322101011223222101011232321110012132321110102223222101011223231101011232321110012132321110102223222101011223321101011232321110012132322011002223222101011223321101011232321110012222322011011223222101011223321101011232321110012222322011011223222101011232321101011232321110012222322101011223222101011232321110011232321110102222322101011223222101011232321110011232321110102223222101011223231101011232321110012132321110102223222101011223321101011232321110012132322010102223222101011223321101011232321110012222322011002223222101011223321101011232321110012222322011011223222101011232321101011232321110012222322101011223222101011232321110011232321110102222322101011223222101011232321110011232321110102223222101011223222101011232321110012132321110102223222101011223222110111123312110111132321110111132321110111';
-const bsLen=(y,m)=>29+ +BSD[(y-2000)*12+m-1];
-const REF=Date.UTC(1943,3,14);
-function bs2ad(y,m,d){let n=d-1;for(let k=2000;k<y;k++)for(let j=1;j<=12;j++)n+=bsLen(k,j);for(let j=1;j<m;j++)n+=bsLen(y,j);return new Date(REF+n*864e5)}
-function ad2bs(dt){let n=Math.round((Date.UTC(dt.getFullYear(),dt.getMonth(),dt.getDate())-REF)/864e5);if(n<0)return null;let y=2000;
-  for(;y<=2090;y++){let L=0;for(let j=1;j<=12;j++)L+=bsLen(y,j);if(n<L)break;n-=L}
-  if(y>2090)return null;let m=1;while(n>=bsLen(y,m)){n-=bsLen(y,m);m++}return[y,m,n+1]}
-//BS-END
-const MN=['Baisakh बैशाख','Jestha जेठ','Asar असार','Shrawan श्रावण','Bhadra भदौ','Aswin असोज','Kartik कार्तिक','Mangsir मंसिर','Poush पौष','Magh माघ','Falgun फागुन','Chaitra चैत'];
-const WD=['Sunday आइतबार','Monday सोमबार','Tuesday मंगलबार','Wednesday बुधबार','Thursday बिहीबार','Friday शुक्रबार','Saturday शनिबार'];
-$('dM').innerHTML=MN.map((x,i)=>`<option value="${i+1}">${i+1} - ${x}</option>`).join('');
-(()=>{const t=new Date(),b=ad2bs(t);if(b){$('dY').value=b[0];$('dM').value=b[1];$('dD').value=b[2]}$('dA').value=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0')})();
-const iso=d=>d.toISOString().slice(0,10);
-function dOut(a,b,w){$('dOut').innerHTML=`<div class="card"><span>From / बाट</span><b>${nd(a)}</b></div><div class="card big"><span>To / मा</span><b>${nd(b)}</b></div><div class="card"><span>Weekday / बार</span><b>${w}</b></div>`;setCur('date','Date converter',[['From',a],['To',b],['Weekday',w]])}
-const dErr=()=>{$('dOut').innerHTML='<div class="card err">Date not valid or out of range (BS 2000–2090). / मिति मिलेन।</div>'};
-$('dGo1').onclick=()=>{const y=+$('dY').value,m=+$('dM').value,d=+$('dD').value;
-  if(!(y>=2000&&y<=2090)||!(d>=1&&d<=bsLen(y,m)))return dErr();
-  const a=bs2ad(y,m,d);dOut(`BS ${y}-${m}-${d} (${MN[m-1]})`,'AD '+iso(a),WD[a.getUTCDay()])};
-$('dGo2').onclick=()=>{const v=$('dA').value;if(!v)return dErr();const p=v.split('-').map(Number),b=ad2bs(new Date(p[0],p[1]-1,p[2]));
-  if(!b)return dErr();dOut('AD '+v,`BS ${b[0]}-${b[1]}-${b[2]} (${MN[b[1]-1]})`,WD[new Date(Date.UTC(p[0],p[1]-1,p[2])).getUTCDay()])};
-
-/* ---------- UNITS ---------- */
-const A1=5476*.09290304;
-const U={len:{n:'Length / दूरी',u:{mm:.001,cm:.01,m:1,km:1000,inch:.0254,ft:.3048,yard:.9144,mile:1609.344}},
- mass:{n:'Weight / तौल',u:{mg:1e-6,g:.001,kg:1,quintal:100,tonne:1000,oz:.028349523125,lb:.45359237,tola:.011663804}},
- area:{n:'Land & Area / जग्गा नाप',u:{'sq ft':.09290304,'sq m':1,ropani:A1,aana:A1/16,paisa:A1/64,daam:A1/256,bigha:72900*.09290304,kattha:72900*.09290304/20,dhur:72900*.09290304/400,acre:43560*.09290304,hectare:1e4,'sq km':1e6}},
- energy:{n:'Energy / ऊर्जा',u:{J:1,kJ:1000,cal:4.184,kcal:4184,Wh:3600,kWh:3.6e6,MJ:1e6,BTU:1055.056,'ft·lbf':1.3558179483,eV:1.602176634e-19}},
- temp:{n:'Temperature / तापक्रम',u:{'°C':0,'°F':0,K:0}}};
-function conv(c,v,f,t){if(c==='temp'){const C=f==='°C'?v:f==='°F'?(v-32)*5/9:v-273.15;return t==='°C'?C:t==='°F'?C*9/5+32:C+273.15}return v*U[c].u[f]/U[c].u[t]}
-Object.assign(U,{speed:{n:'Speed / गति',u:{'m/s':1,'km/h':1/3.6,mph:.44704,knot:1852/3600,'ft/s':.3048}},
- time:{n:'Time / समय',u:{sec:1,min:60,hour:3600,day:86400,week:604800,'year (365d)':31536000}},
- vol:{n:'Volume / आयतन',u:{mL:.001,L:1,'m³':1000,'gal (US)':3.785411784,'qt (US)':.946352946,'cup (US)':.2365882365,'fl oz (US)':.0295735295625}},
- press:{n:'Pressure / चाप',u:{Pa:1,kPa:1000,bar:1e5,psi:6894.757293168,atm:101325,mmHg:133.322387415}},
- power:{n:'Power / शक्ति',u:{W:1,kW:1000,hp:745.69987158227,'BTU/h':.29307107}},
- data:{n:'Data / डाटा',u:{B:1,KB:1024,MB:1048576,GB:1073741824,TB:1099511627776}},
- cur:{n:'Currency / मुद्रा',u:{}}});
-const CO=['len','mass','area','speed','temp','energy','cur','time','vol','press','power','data'];
-const CI={len:'📏',mass:'⚖️',area:'🏔️',speed:'🚗',temp:'🌡️',energy:'⚡',cur:'💱',time:'⏱️',vol:'🧪',press:'🎈',power:'🔌',data:'💾'};
-$('uC').innerHTML=CO.map(k=>`<option value="${k}">${U[k].n}</option>`).join('');
-const toB=(c,v,u)=>c==='temp'?(u==='°C'?v:u==='°F'?(v-32)*5/9:v-273.15):v*U[c].u[u];
-const fromB=(c,b,u)=>c==='temp'?(u==='°C'?b:u==='°F'?b*9/5+32:b+273.15):b/U[c].u[u];
-let uTm;
-function uFill(){const c=$('uC').value,ks=Object.keys(U[c].u);
-  $('uN').innerHTML=c==='cur'?(FX?'<div class="note">Rates updated: '+FX.t+'. Market rates, not bank buying/selling rates. / बजार दर हो, बैंकको खरिद/बिक्री दर होइन।</div>':'<div class="amber">Live rates need internet. Open the app online once. / लाइभ दरका लागि इन्टरनेट चाहिन्छ।</div>'):c==='area'?'<div class="amber">Hills: 1 ropani = 5,476 sq ft = 16 aana = 64 paisa = 256 daam. Terai: 1 bigha = 72,900 sq ft = 20 kattha = 400 dhur. Local measures can differ, so confirm at your land office. / स्थानीय नाप फरक हुन सक्छ, मालपोतमा जाँच गर्नुहोस्।</div>':'';
-  $('uL').innerHTML=ks.map(k=>`<div class="slab"><input data-u="${k}" type="number" inputmode="decimal" step="any" aria-label="${k}"><b style="align-self:center">${k}</b></div>`).join('');
-  const ins=[...$('uL').querySelectorAll('input')];
-  ins.forEach(inp=>inp.oninput=()=>{const v=parseFloat(inp.value);
-    ins.forEach(o=>{if(o!==inp)o.value=isNaN(v)?'':+fromB(c,toB(c,v,inp.dataset.u),o.dataset.u).toPrecision(8)});
-    clearTimeout(uTm);if(isNaN(v))return;
-    uTm=setTimeout(()=>logH('Unit',v+' '+inp.dataset.u+' = '+ins.filter(o=>o!==inp).slice(0,3).map(o=>o.value+' '+o.dataset.u).join(' = ')),1500)});
-  if(!ins.length)return;const d=ins[c==='cur'?0:Math.min(2,ins.length-1)];d.value=1;d.oninput()}
-$('uC').onchange=uFill;uFill();
-const TO=['date','area','len','mass','speed','temp','energy','cur','time','vol','press','power','data'];CI.date='📅';
-$('cg').innerHTML=TO.map(k=>`<button class="tile" data-c="${k}"><span class="i">${CI[k]}</span>${tl(k==='date'?'Date BS/AD / मिति':U[k].n)}</button>`).join('');
-$('cg').querySelectorAll('.tile').forEach(b=>b.onclick=()=>{if(b.dataset.c==='date'){show('date');return}$('uC').value=b.dataset.c;UT=U[b.dataset.c].n;uFill();show('unit')});
-const CUR=['USD','NPR','INR','EUR','GBP','AED','QAR','SAR','MYR','KWD','AUD','CAD','JPY','CNY','KRW'];
-function setFx(d){FX=d;U.cur.u={};CUR.forEach(k=>{if(d.r[k])U.cur.u[k]=1/d.r[k]});if($('uC').value==='cur')uFill()}
-async function loadFx(){try{const c=JSON.parse(localStorage.getItem('hisab_fx')||'null');if(c&&c.r)setFx(c)}catch(e){}
-  let d=null;
-  try{const r=await fetch('https://open.er-api.com/v6/latest/USD'),j=await r.json();if(j.rates&&j.rates.NPR)d={t:(j.time_last_update_utc||'').slice(0,16),r:j.rates}}catch(e){}
-  if(!d)try{const r=await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json'),j=await r.json(),o={};for(const k in j.usd)o[k.toUpperCase()]=j.usd[k];if(o.NPR)d={t:j.date,r:o}}catch(e){}
-  if(d){try{localStorage.setItem('hisab_fx',JSON.stringify(d))}catch(e){}setFx(d)}}
-loadFx();
-['iFm','iEm'].forEach(i=>$(i).innerHTML=MN.map((x,k)=>`<option value="${k+1}">${k+1} - ${x.split(' ')[1]}</option>`).join(''));
-function bsDiff(a,b){const A=bs2ad(...a),B=bs2ad(...b);if(B<A)return null;let m=(b[0]-a[0])*12+b[1]-a[1];
-  const add=k=>{const t=a[1]-1+k,y=a[0]+Math.floor(t/12),mo=t%12+1;return bs2ad(y,mo,Math.min(a[2],bsLen(y,mo)))};
-  if(add(m)>B)m--;return[m,Math.round((B-add(m))/864e5)]}
-$('iMode').onchange=()=>{const d=$('iMode').value==='d';$('iTm').classList.toggle('hide',d);$('iBs').classList.toggle('hide',!d);
-  if(d&&!$('iFy').value){const b=ad2bs(new Date());if(b)['iF','iE'].forEach(p=>{$(p+'y').value=b[0];$(p+'m').value=b[1];$(p+'d').value=b[2]})}};
-/* ---------- FINANCE TOOLS ---------- */
-const yrs=Y=>{const a=[];for(let y=1;y<=Math.floor(Y);y++)a.push(y);if(Y%1)a.push(Y);return a};
-const FT=[
-{k:'lump',i:'💵',n:'Lumpsum/FD / एकमुष्ट/मुद्दती',f:[['P','Amount / रकम (Rs)',100000],['R','Interest or return % per year / वार्षिक दर',12],['Y','Years / वर्ष',10],['K','Interest type / ब्याज किसिम',1,[[12,'Compound monthly / मासिक चक्रीय'],[4,'Compound quarterly / त्रैमासिक'],[2,'Compound half-yearly / अर्धवार्षिक'],[1,'Compound yearly / वार्षिक'],[0,'Simple (normal) / साधारण']]]],c:v=>{const bal=y=>v.K==0?v.P*(1+v.R*y/100):v.P*Math.pow(1+v.R/100/v.K,v.K*y),F=bal(v.Y),rows=[];let prev=v.P;
-  yrs(v.Y).forEach(y=>{const c=bal(y);rows.push([+y.toFixed(2),Math.round(prev),Math.round(c-prev),Math.round(c)]);prev=c});
-  const r=[['Maturity value',F],['Invested',v.P],['Returns',F-v.P]];r.head=['Year','Opening balance','Interest earned','Closing balance'];r.rows=rows;return r}},
-{k:'goal',i:'🎯',n:'SIP Goal / लक्ष्य',f:[['T','Target amount / लक्ष्य रकम (Rs)',1000000],['R','Return % per year',12],['Y','Years',10]],c:v=>{const i=v.R/1200,n=Math.round(v.Y*12);if(n<1)return null;const A=i?v.T*i/((Math.pow(1+i,n)-1)*(1+i)):v.T/n;return[['Monthly SIP needed',A],['Total you invest',A*n],['Target',v.T]]}},
-{k:'rd',i:'🗓️',n:'Recurring Deposit / आवर्ती',f:[['A','Monthly deposit (Rs)',5000],['R','Interest % per year',8],['Y','Years',3]],c:v=>{const i=v.R/1200,n=Math.round(v.Y*12);let b=0;for(let m=0;m<n;m++)b=(b+v.A)*(1+i);return[['Maturity amount',b],['Total deposited',v.A*n],['Interest earned',b-v.A*n]]}},
-{k:'gold',i:'🪙',n:'Gold & Silver / सुन-चाँदी',a:'Gold and silver rates change daily: enter today\'s rate per tola from your dealer. 1 tola = 11.6638 g (confirm). VAT rule: check the current rule. / आजको दर पसलबाट बुझेर राख्नुहोस्।',f:[['W','Weight / तौल',1],['U','Unit / एकाइ',1,[[1,'Tola / तोला'],[2,'Gram / ग्राम']]],['R','Rate per tola (Rs) / प्रति तोला दर',''],['J','Wastage (jarti) % / जर्ती',2],['M','Making charge (jyala) Rs / ज्याला',3000],['V','VAT % / भ्याट',13]],c:v=>{const t=v.U==2?v.W/11.6638:v.W,m=t*v.R,j=m*v.J/100,sub=m+j+v.M,vat=sub*v.V/100;return[['Total price',sub+vat],['Metal value ('+(+t.toFixed(3))+' tola)',m],['Wastage (jarti)',j],['Making charge (jyala)',v.M],['VAT',vat]]}},
-{k:'vat',i:'🧾',n:'VAT / भ्याट',f:[['A','Amount (Rs)',1000],['R','VAT % (check the current rate)',13]],c:v=>[['Total if VAT is added',v.A*(1+v.R/100)],['VAT to add',v.A*v.R/100],['If amount already has VAT: price without VAT',v.A/(1+v.R/100)],['If amount already has VAT: VAT inside',v.A-v.A/(1+v.R/100)]]},
-{k:'pct',i:'％',n:'Percentage / प्रतिशत',m:0,f:[['A','Number',200],['B','Percent %',15]],c:v=>[[v.B+'% of '+v.A,v.A*v.B/100],[v.A+' plus '+v.B+'%',v.A*(1+v.B/100)],[v.A+' minus '+v.B+'%',v.A*(1-v.B/100)],[v.A+' is what % of '+v.B,v.B?v.A/v.B*100:NaN]]},
-{k:'profit',i:'📊',n:'Profit & Margin / नाफा',f:[['C','Cost price (Rs)',800],['S','Selling price (Rs)',1000]],c:v=>[['Profit',v.S-v.C],['Profit % on cost (markup)',v.C?(v.S-v.C)/v.C*100:NaN,0],['Margin % on selling price',v.S?(v.S-v.C)/v.S*100:NaN,0]]},
-{k:'disc',i:'🏷️',n:'Discount / छुट',f:[['P','Price (Rs)',1000],['D','Discount %',10]],c:v=>[['Price after discount',v.P*(1-v.D/100)],['You save',v.P*v.D/100]]},
-{k:'cagr',i:'📉',n:'CAGR / वार्षिक वृद्धि',f:[['S','Start value (Rs)',100000],['E','End value (Rs)',250000],['Y','Years',5]],c:v=>v.S>0&&v.Y>0?[['CAGR % per year',(Math.pow(v.E/v.S,1/v.Y)-1)*100,0]]:null},
-{k:'infl',i:'🎈',n:'Inflation / मुद्रास्फीति',f:[['A','Amount today (Rs)',100000],['R','Inflation % per year',6],['Y','Years',10]],c:v=>{const g=y=>Math.pow(1+v.R/100,y),rows=yrs(v.Y).map(y=>[+y.toFixed(2),Math.round(v.A*g(y)),Math.round(v.A/g(y)),Math.round(v.A-v.A/g(y))]),
-  r=[['Same things will cost',v.A*g(v.Y)],['Your amount will be worth (today money)',v.A/g(v.Y)]];r.head=['Year','Same things will cost','Your amount is worth','Value lost'];r.rows=rows;return r}}];
-let FTc=null;
-$('fg').innerHTML=FT.map(t=>`<button class="tile" data-f="${t.k}"><span class="i">${t.i}</span>${tl(t.n)}</button>`).join('');
-$('fg').querySelectorAll('.tile').forEach(b=>b.onclick=()=>{FTc=FT.find(t=>t.k===b.dataset.f);FTT=FTc.n;
-  $('finF').innerHTML=FTc.f.map(f=>`<label>${f[1]}</label>${f[3]?`<select id="ff_${f[0]}">${f[3].map(o=>`<option value="${o[0]}">${o[1]}</option>`).join('')}</select>`:`<input id="ff_${f[0]}" type="number" inputmode="decimal" step="any" value="${f[2]}">`}`).join('');
-  if(FTc.a)$('finF').insertAdjacentHTML('beforeend','<div class="amber">'+FTc.a+'</div>');$('finO').innerHTML='';$('finT').classList.add('hide');delete cur.fin;show('fin')});
-$('finGo').onclick=()=>{const t=FTc,v={};
-  for(const f of t.f){v[f[0]]=parseFloat($('ff_'+f[0]).value);if(!isFinite(v[f[0]])||v[f[0]]<0){$('finO').innerHTML='<div class="card err">Enter numbers (0 or more) in every box. / सबै बाकसमा संख्या हाल्नुहोस्।</div>';return}}
-  const r=t.c(v);if(!r||r.some(x=>!isFinite(x[1]))){$('finO').innerHTML='<div class="card err">These values cannot be calculated. / यी मानबाट हिसाब हुँदैन।</div>';return}
-  const show1=x=>t.m===0||x[2]===0?fmt(+x[1].toFixed(4))+(x[2]===0?'%':''):rs(x[1]);
-  $('finO').innerHTML=r.map((x,i)=>`<div class="card${i?'':' big'}"><span>${x[0]}</span><b>${show1(x)}</b></div>`).join('');
-  $('finT').innerHTML=r.rows?'<table><tr>'+r.head.map(h=>'<th>'+h+'</th>').join('')+'</tr>'+r.rows.map(x=>'<tr>'+x.map((c,k)=>'<td>'+(k?fmt(c):nd(c))+'</td>').join('')+'</tr>').join('')+'</table>':'';$('finT').classList.toggle('hide',!r.rows);
-  setCur('fin',t.n.split(' /')[0],[...t.f.map(f=>[f[1].split(' /')[0],f[3]?f[3].find(o=>o[0]==v[f[0]])[1].split(' /')[0]:v[f[0]]]),...r.map(x=>[x[0],x[2]===0?+x[1].toFixed(2)+'%':+x[1].toFixed(2)])],r.head,r.rows)};
-
-
-/* ---------- GEOMETRY ---------- */
-const P=Math.PI,d2r=x=>x*P/180;
-const SH={circle:{n:'Circle / वृत्त',f:['r'],c:v=>[['Area',P*v.r*v.r],['Circumference',2*P*v.r],['Diameter',2*v.r]]},
-square:{n:'Square / वर्ग',f:['a'],c:v=>[['Area',v.a*v.a],['Perimeter',4*v.a],['Diagonal',v.a*Math.SQRT2]]},
-rect:{n:'Rectangle / आयत',f:['l','w'],c:v=>[['Area',v.l*v.w],['Perimeter',2*(v.l+v.w)],['Diagonal',Math.hypot(v.l,v.w)]]},
-tri:{n:'Triangle base-height / त्रिभुज',f:['b','h'],c:v=>[['Area',v.b*v.h/2]]},
-tri3:{n:'Triangle 3 sides (Heron)',f:['a','b','c'],c:v=>{const s=(v.a+v.b+v.c)/2,A=s*(s-v.a)*(s-v.b)*(s-v.c);return A>0?[['Area',Math.sqrt(A)],['Perimeter',2*s]]:null}},
-trap:{n:'Trapezoid / ट्रापेजियम',f:['a','b','h'],c:v=>[['Area',(v.a+v.b)*v.h/2]]},
-cube:{n:'Cube / घन',f:['a'],c:v=>[['Volume',v.a**3],['Surface area',6*v.a*v.a],['Diagonal',v.a*Math.sqrt(3)]]},
-cuboid:{n:'Cuboid / घनाभ',f:['l','w','h'],c:v=>[['Volume',v.l*v.w*v.h],['Surface area',2*(v.l*v.w+v.w*v.h+v.l*v.h)],['Diagonal',Math.sqrt(v.l*v.l+v.w*v.w+v.h*v.h)]]},
-cyl:{n:'Cylinder / बेलना',f:['r','h'],c:v=>[['Volume',P*v.r*v.r*v.h],['Curved area',2*P*v.r*v.h],['Total area',2*P*v.r*(v.r+v.h)]]},
-cone:{n:'Cone / शंकु',f:['r','h'],c:v=>{const l=Math.hypot(v.r,v.h);return[['Slant height',l],['Volume',P*v.r*v.r*v.h/3],['Total area',P*v.r*(v.r+l)]]}},
-sph:{n:'Sphere / गोला',f:['r'],c:v=>[['Volume',4/3*P*v.r**3],['Surface area',4*P*v.r*v.r]]},
-rt:{n:'Right triangle: sides a, b',f:['a','b'],c:v=>{const c=Math.hypot(v.a,v.b),A=Math.atan(v.a/v.b)*180/P;return[['Hypotenuse c',c],['Angle A °',A],['Angle B °',90-A],['Area',v.a*v.b/2],['Perimeter',v.a+v.b+c]]}},
-rta:{n:'Right triangle: hypotenuse c, angle A°',f:['c','A'],c:v=>{if(v.A>=90)return null;const a=v.c*Math.sin(d2r(v.A)),b=v.c*Math.cos(d2r(v.A));return[['Side a (opposite A)',a],['Side b',b],['Angle B °',90-v.A],['Area',a*b/2]]}}};
-const FL={r:'r radius / अर्ध्यास',a:'a',b:'b',c:'c',l:'l length / लम्बाइ',w:'w width / चौडाइ',h:'h height / उचाइ',A:'A angle ° / कोण'};
-$('gS').innerHTML=Object.keys(SH).map(k=>`<option value="${k}">${SH[k].n}</option>`).join('');
-function gFill(){$('gF').innerHTML=SH[$('gS').value].f.map(f=>`<label>${FL[f]}</label><input id="g_${f}" type="number" inputmode="decimal" min="0" step="any">`).join('');$('gO').innerHTML=''}
-$('gS').onchange=gFill;gFill();
-$('gGo').onclick=()=>{const sh=SH[$('gS').value],v={};
-  for(const f of sh.f){v[f]=+$('g_'+f).value;if(!(v[f]>0)){$('gO').innerHTML='<div class="card err">Enter all values above 0. / सबै मान ० भन्दा ठूला हाल्नुहोस्।</div>';return}}
-  const r=sh.c(v);if(!r){$('gO').innerHTML='<div class="card err">These values cannot make this shape. / यी मानले आकृति बन्दैन।</div>';return}
-  $('gO').innerHTML=r.map((x,i)=>`<div class="card${i?'':' big'}"><span>${x[0]}</span><b>${fmt(+x[1].toPrecision(10))}</b></div>`).join('');
-  setCur('geo',sh.n.split(' /')[0],[...sh.f.map(f=>['Input '+f,v[f]]),...r.map(x=>[x[0],+x[1].toPrecision(10)])])};
-
-/* ---------- INSTALL / SHARE ---------- */
-const isStd=()=>navigator.standalone||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
-function instShow(){let t=0;try{t=+localStorage.getItem('hisab_inst_no')||0}catch(e){}$('instBar').classList.toggle('hide',!!isStd()||Date.now()-t<6048e5)}
-$('instGo').onclick=()=>{const p=window.__dp;if(p){p.prompt();p.userChoice.then(c=>{window.__dp=null;if(c.outcome==='accepted')$('instBar').classList.add('hide')}).catch(()=>{})}else $('instHelp').classList.toggle('hide')};
-$('instX').onclick=()=>{try{localStorage.setItem('hisab_inst_no',Date.now())}catch(e){}$('instBar').classList.add('hide');$('instHelp').classList.add('hide')};
-addEventListener('appinstalled',()=>{$('instBar').classList.add('hide');$('instHelp').classList.add('hide')});
-instShow();
-$('shr').onclick=()=>{const u=location.href.split('#')[0],t='Hisab Calculator — सैकडा ब्याज, SIP, EMI, मिति, नाप';if(navigator.share)navigator.share({title:t,url:u}).catch(()=>{});else window.open('https://wa.me/?text='+encodeURIComponent(t+' '+u))};
-
-/* ---------- NOTES & REMINDERS ---------- */
-const store=k=>{try{return JSON.parse(localStorage.getItem(k)||'[]')}catch(e){return[]}};
-const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){alert('Could not save in this browser.')}};
-const esc=x=>String(x).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const bt='class="k s" style="padding:4px 10px"';
-let nEdit=null;
-function drawN(){const n=store('hisab_notes');
-  $('nL').innerHTML=n.map((x,i)=>`<div class="hr"><b>${esc(x.t||'(no title)')}</b> <span class="note">${x.d}</span>\n${esc(x.b)}\n<button ${bt} data-e="${i}">Edit</button> <button ${bt} data-k="${i}">Copy</button> <button ${bt} data-x="${i}">Delete</button></div>`).join('')||'<div class="note">No notes yet. / नोट छैन।</div>';
-  $('nL').querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{const x=store('hisab_notes')[b.dataset.e];$('nT').value=x.t;$('nB').value=x.b;nEdit=+b.dataset.e;$('nSv').textContent='Update note / अपडेट'});
-  $('nL').querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{const x=store('hisab_notes')[b.dataset.k];try{navigator.clipboard.writeText((x.t?x.t+'\n':'')+x.b);alert('Copied / कपी भयो')}catch(e){alert('Copy is not supported here.')}});
-  $('nL').querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{if(!confirm('Delete this note? / हटाउने?'))return;const a=store('hisab_notes');a.splice(+b.dataset.x,1);save('hisab_notes',a);nEdit=null;drawN()})}
-$('nSv').onclick=()=>{const t=$('nT').value.trim(),b=$('nB').value.trim();if(!t&&!b)return;const a=store('hisab_notes'),r={t,b,d:new Date().toLocaleString()};
-  if(nEdit!==null&&a[nEdit])a[nEdit]=r;else a.unshift(r);save('hisab_notes',a);nEdit=null;$('nT').value='';$('nB').value='';$('nSv').textContent='Save note / सुरक्षित';drawN()};
-const remDue=r=>{const p=r.ad.split('-').map(Number),h=r.h.split(':').map(Number);return new Date(p[0],p[1]-1,p[2],h[0],h[1])};
-function banner(){const end=new Date();end.setHours(23,59,59,999);const n=store('hisab_rem').filter(r=>!r.done&&remDue(r)<=end).length;
-  $('rBanner').textContent=n?'⏰ '+n+' reminder(s) due today or overdue — tap to open / '+n+' आजको वा म्याद नाघेका रिमाइन्डर':'';$('rBanner').classList.toggle('hide',!n)}
-$('rBanner').onclick=()=>show('rem');
-const p2=x=>String(x).padStart(2,'0');
-function ics(r){const p=r.ad.split('-'),h=r.h.split(':'),st=p[0]+p[1]+p[2]+'T'+h[0]+h[1]+'00',e=new Date(remDue(r).getTime()+36e5),
-  en=e.getFullYear()+p2(e.getMonth()+1)+p2(e.getDate())+'T'+p2(e.getHours())+p2(e.getMinutes())+'00',c=x=>String(x||'').replace(/[,;\n]/g,' ');
-  const x=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Hisab//EN','BEGIN:VEVENT','UID:'+r.id+'@hisab','DTSTAMP:'+st,'DTSTART:'+st,'DTEND:'+en,'SUMMARY:'+c(r.t),'DESCRIPTION:'+c(r.n),'BEGIN:VALARM','TRIGGER:PT0M','ACTION:DISPLAY','DESCRIPTION:'+c(r.t),'END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
-  const u=URL.createObjectURL(new Blob([x],{type:'text/calendar'})),a=document.createElement('a');a.href=u;a.download='reminder.ics';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)}
-let rF='all';
-function drawR(){const now=new Date(),tdy=now.toDateString(),a=store('hisab_rem').sort((x,y)=>remDue(x)-remDue(y)).filter(r=>{const d=remDue(r),t=d.toDateString()===tdy;return rF==='all'||(rF==='done'&&r.done)||(rF==='today'&&!r.done&&t)||(rF==='upcoming'&&!r.done&&d>now&&!t)||(rF==='overdue'&&!r.done&&d<now&&!t)});
-  $('rL').innerHTML=a.map(r=>{const d=remDue(r),st=r.done?'Done ✓':d<now?'Overdue':d.toDateString()===now.toDateString()?'Today':'Upcoming';
-    return `<div class="hr"><b>${esc(r.t)}</b> <span class="note">[${st}]${r.p==='high'?' · High / जरूरी':r.p==='medium'?' · Medium / मध्यम':''}</span>\nBS ${r.bs} · AD ${r.ad} · ${r.h}${r.n?'\n'+esc(r.n):''}\n<button ${bt} data-d="${r.id}">${r.done?'Undo':'Done'}</button> <button ${bt} data-c="${r.id}">Calendar</button> <button ${bt} data-x="${r.id}">Delete</button></div>`}).join('')||'<div class="note">No reminders yet. / रिमाइन्डर छैन।</div>';
-  const up=f=>{const l=store('hisab_rem');f(l);save('hisab_rem',l);drawR()};
-  $('rL').querySelectorAll('[data-d]').forEach(b=>b.onclick=()=>up(l=>{const r=l.find(z=>z.id===b.dataset.d);r.done=!r.done;r.nt=false}));
-  $('rL').querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{if(confirm('Delete this reminder? / हटाउने?'))up(l=>l.splice(l.findIndex(z=>z.id===b.dataset.x),1))});
-  $('rL').querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>ics(store('hisab_rem').find(z=>z.id===b.dataset.c)));
-  banner()}
-$('rM').innerHTML=MN.map((x,k)=>`<option value="${k+1}">${k+1} - ${x.split(' ')[1]}</option>`).join('');
-(()=>{const b=ad2bs(new Date());if(b){$('rY').value=b[0];$('rM').value=b[1];$('rD').value=b[2]}})();
-$('rSv').onclick=()=>{try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission()}catch(e){}const t=$('rT').value.trim(),y=+$('rY').value,m=+$('rM').value,d=+$('rD').value;
-  if(!t||!(y>=2000&&y<=2090)||!(d>=1&&d<=bsLen(y,m))){alert('Enter a title and a valid BS date. / शीर्षक र सही मिति हाल्नुहोस्।');return}
-  const a=store('hisab_rem');a.push({id:String(Date.now()),t,n:$('rN').value.trim(),bs:y+'-'+m+'-'+d,ad:iso(bs2ad(y,m,d)),h:$('rH').value||'09:00',done:false,nt:false,p:$('rP').value});
-  save('hisab_rem',a);$('rT').value='';$('rN').value='';drawR()};
-$('rNt').onclick=()=>{if(!window.Notification){alert('Notifications are not supported here. / यहाँ सूचना चल्दैन।');return}
-  Notification.requestPermission().then(p=>alert(p==='granted'?'Allowed (works while the app is open). / अनुमति दिइयो।':'Not allowed. / अनुमति दिइएन।'))};
-function chk(){const a=store('hisab_rem'),now=new Date(),hit=[];a.forEach(r=>{if(!r.done&&!r.nt&&remDue(r)<=now){r.nt=true;hit.push(r)}});
-  if(!hit.length)return;save('hisab_rem',a);
-  hit.forEach(notify);alarm();
-  alert('⏰ Reminder / रिमाइन्डर:\n'+hit.map(r=>'• '+r.t).join('\n'));if(tab==='rem')drawR();banner()}
-setInterval(chk,30000);setTimeout(chk,1500);
-
-/* ---------- EXTRA: festivals, notes math, home shortcuts, BS date badge ---------- */
-['Dashain / दशैं','Tihar / तिहार','Chhath / छठ','Maghe Sankranti / माघे सङ्क्रान्ति','Maha Shivaratri / महाशिवरात्रि','Holi / होली','Teej / तीज'].forEach(f=>{const b=document.createElement('button');b.textContent=f;b.onclick=()=>{$('rT').value=f;$('rP').value='high'};$('rFest').appendChild(b)});
-$('rFl').querySelectorAll('button').forEach(b=>b.onclick=()=>{$('rFl').querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');rF=b.dataset.f;drawR()});
-$('nCalc').onclick=()=>{$('nB').value=$('nB').value.replace(/(\d+(?:\.\d+)?(?:\s*[+\-*\/×÷−]\s*\d+(?:\.\d+)?)+)(?![\d.]|\s*=)/g,m=>{try{const v=Function('"use strict";return ('+m.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-')+')')();return isFinite(v)?m+' = '+(+v.toFixed(4)):m}catch(e){return m}})};
-$('nTot').onclick=()=>{const L=$('nB').value.split('\n').filter(l=>!/^Total \/ जम्मा/.test(l));let s=0,c=0;
-  L.forEach(l=>{const m=l.match(/-?\d+(?:\.\d+)?/g);if(m){s+=parseFloat(m[m.length-1]);c++}});if(!c)return;
-  $('nB').value=L.join('\n').replace(/\n+$/,'')+'\nTotal / जम्मा = '+(+s.toFixed(2))};
-
-$('hGold').onclick=()=>$('fg').querySelector('[data-f=gold]').click();
-function badge(){const t=new Date(),b=ad2bs(t);if(!b){$('todayBadge').textContent='';return}const m=MN[b[1]-1].split(' '),w=WD[t.getDay()].split(' '),q=x=>String(x).padStart(2,'0'),ad=t.getFullYear()+'-'+q(t.getMonth()+1)+'-'+q(t.getDate()),
-  e='BS '+b[0]+' '+m[0]+' '+b[2]+'  ·  AD '+w[0]+', '+ad,n='वि.सं. '+nd(b[0])+' '+m[1]+' '+nd(b[2])+' गते  ·  ई.सं. '+w[1]+', '+nd(ad);
-  $('todayBadge').textContent=LANG==='en'?'Today: '+e:LANG==='ne'?'आज: '+n:'Today / आज: '+e+'   |   '+n}
-
-/* ---------- LANGUAGE: English / Nepali / both ---------- */
-let LANG='both';try{LANG=localStorage.getItem('hisab_lang')||'both'}catch(e){}
-const DEVN=/[\u0900-\u097F]/;
-function tl(n){const i=n.indexOf(' / ');return i<0?n:'<span class="en">'+n.slice(0,i)+'</span><br class="en"><small class="ne">'+n.slice(i+3)+'</small>'}
-function loc(s){if(LANG==='both'||!DEVN.test(s))return s;
-  const c=[s.indexOf(' / '),s.indexOf(' | ')].filter(i=>i>=0).sort((x,y)=>x-y)[0];
-  if(c===undefined)return s.replace(/([A-Za-z]+) ([\u0900-\u097F]+)/g,(m,a,b)=>LANG==='en'?a:b);
-  const a=s.slice(0,c),b=s.slice(c+3),ad=DEVN.test(a),bd=DEVN.test(b);
-  if(!ad&&bd)return LANG==='en'?a:b;if(ad&&!bd)return LANG==='en'?b:a;return s}
-function lz(n){const p=n.parentNode;if(!p||/^(SCRIPT|STYLE|TEXTAREA)$/.test(p.nodeName)||(p.closest&&p.closest('#nL,#edL')))return;
-  const o=(n.__l!==undefined&&n.nodeValue===n.__l)?n.__o:n.nodeValue,r=loc(o);
-  if(r!==o){n.__o=o;n.__l=r}else{delete n.__o;delete n.__l}
-  if(n.nodeValue!==r)n.nodeValue=r}
-function walk(root){const w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT),a=[];while(w.nextNode())a.push(w.currentNode);a.forEach(lz)}
-function lzAttr(){document.querySelectorAll('[placeholder]').forEach(e=>{if(e.dataset.po===undefined)e.dataset.po=e.getAttribute('placeholder');e.setAttribute('placeholder',loc(e.dataset.po))})}
-function applyLang(){document.documentElement.dataset.lang=LANG;walk(document.body);lzAttr();badge();drawL()}
-$('lang').value=LANG;
-$('lang').onchange=()=>{LANG=$('lang').value;try{localStorage.setItem('hisab_lang',LANG)}catch(e){}applyLang()};
-new MutationObserver(ms=>ms.forEach(m=>{if(m.type==='characterData')lz(m.target);else m.addedNodes.forEach(n=>{if(n.nodeType===3)lz(n);else if(n.nodeType===1)walk(n)})})).observe(document.body,{childList:true,subtree:true,characterData:true});
-
-/* ---------- ALARM SOUND + NOTIFICATION ---------- */
-let AC=null;
-function unlockAudio(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}}
-['click','touchstart','keydown'].forEach(ev=>addEventListener(ev,unlockAudio,{passive:true}));
-function alarm(){try{unlockAudio();if(AC)[0,.35,.7,1.05,1.4,1.75].forEach((t,i)=>{const o=AC.createOscillator(),g=AC.createGain(),n=AC.currentTime+t;o.type='square';o.frequency.value=i%2?660:880;o.connect(g);g.connect(AC.destination);g.gain.setValueAtTime(.25,n);g.gain.exponentialRampToValueAtTime(.001,n+.3);o.start(n);o.stop(n+.32)})}catch(e){}
-  try{if(navigator.vibrate)navigator.vibrate([300,150,300,150,300])}catch(e){}}
-function notify(r){const o={body:r.n||'Reminder',icon:'icon-192.png',badge:'icon-192.png',vibrate:[300,150,300],tag:r.id,requireInteraction:true};
-  try{if(!window.Notification||Notification.permission!=='granted')return;
-    if(navigator.serviceWorker&&navigator.serviceWorker.ready)navigator.serviceWorker.ready.then(g=>g.showNotification('⏰ '+r.t,o)).catch(()=>new Notification('⏰ '+r.t,o));else new Notification('⏰ '+r.t,o)}catch(e){}}
-$('rTs').onclick=()=>{try{if(window.Notification&&Notification.permission==='default')Notification.requestPermission()}catch(e){}alarm();notify({id:'test',t:'Test reminder',n:'Sound and notification work.'})};
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)chk()});
-
-/* ---------- SECURITY: PIN LOCK ---------- */
-const PK='hisab_pin',PA='hisab_pin_auto';
-const pinData=()=>{try{return JSON.parse(localStorage.getItem(PK)||'null')}catch(e){return null}};
-async function hashPin(p,salt){const h=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(salt+':'+p));return[...new Uint8Array(h)].map(x=>x.toString(16).padStart(2,'0')).join('')}
-async function pinOk(p){const d=pinData();return!!d&&await hashPin(p,d.s)===d.h}
-const LK=document.documentElement.classList;
-function lockNow(){if(!pinData())return;LK.add('locked');$('lP').value='';$('lE').textContent='';setTimeout(()=>{try{$('lP').focus()}catch(e){}},50)}
-function secDraw(){const p=!!pinData();$('secSt').textContent=p?'PIN is ON / पिन चालु छ':'PIN is OFF / पिन बन्द छ';$('secSet').classList.toggle('hide',p);$('secOn').classList.toggle('hide',!p);
-  try{$('pAuto').value=localStorage.getItem(PA)||'60000'}catch(e){}}
-$('pAuto').onchange=()=>{try{localStorage.setItem(PA,$('pAuto').value)}catch(e){}};
-$('pSv').onclick=async()=>{const a=$('pN').value,b=$('pN2').value;
-  if(!/^\d{4,6}$/.test(a)){alert('PIN must be 4 to 6 digits. / पिन ४ देखि ६ अंकको हुनुपर्छ।');return}
-  if(a!==b){alert('PINs do not match. / पिन मिलेन।');return}
-  try{const salt=[...crypto.getRandomValues(new Uint8Array(8))].join('-');localStorage.setItem(PK,JSON.stringify({s:salt,h:await hashPin(a,salt)}));$('pN').value='';$('pN2').value='';secDraw();alert('PIN is set. / पिन राखियो।')}catch(e){alert('Could not set the PIN in this browser.')}};
-$('pLock').onclick=lockNow;
-$('pRm').onclick=async()=>{if(await pinOk($('pC').value)){try{localStorage.removeItem(PK)}catch(e){}$('pC').value='';secDraw();alert('PIN removed. / पिन हटाइयो।')}else alert('Wrong PIN. / गलत पिन।')};
-let fails=0,until=0,hiddenAt=0;
-$('lGo').onclick=async()=>{if(Date.now()<until){$('lE').textContent='Please wait a little. / केही बेर पर्खनुहोस्।';return}
-  if(await pinOk($('lP').value)){fails=0;LK.remove('locked');$('lP').value='';$('lE').textContent=''}
-  else{fails++;$('lE').textContent='Wrong PIN. / गलत पिन।';if(fails>=5){until=Date.now()+30000;fails=0;$('lE').textContent='Too many tries. Wait 30 seconds. / ३० सेकेन्ड पर्खनुहोस्।'}$('lP').value=''}};
-$('lP').onkeydown=e=>{if(e.key==='Enter')$('lGo').click()};
-$('lRs').onclick=()=>{if(confirm('Reset the app? This erases notes, reminders and history on this phone. / रिसेट गर्ने? नोट, रिमाइन्डर र इतिहास मेटिन्छ।')){try{['hisab_notes','hisab_rem','hisab_hist','hisab_pin','hisab_pin_auto','hisab_fx','hisab_records'].forEach(k=>localStorage.removeItem(k))}catch(e){}location.reload()}};
-document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(pinData()&&hiddenAt){let a=60000;try{a=+(localStorage.getItem(PA)||60000)}catch(e){}if(Date.now()-hiddenAt>=a)lockNow()}});
-
-/* ---------- SIGN-IN (optional, needs your Firebase settings) ---------- */
-const FIREBASE_CONFIG=null; /* paste your Firebase web config here, e.g. {apiKey:"...",authDomain:"...",projectId:"...",appId:"..."} */
-const REQUIRE_SIGNIN=false; /* true = nobody can use the app without signing in */
-let FB=null;
-function acctDraw(u){$('acSt').textContent=u?'Signed in: '+(u.displayName||'')+' ('+(u.email||'')+')':'Not signed in / साइन इन गरिएको छैन';$('acIn').classList.toggle('hide',!!u);$('acOut').classList.toggle('hide',!u)}
-const loadJs=u=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=no;document.head.appendChild(e)});
-function signIn(){const p=new firebase.auth.GoogleAuthProvider();FB.signInWithPopup(p).catch(e=>{if(/popup|operation-not-supported/.test(e.code||''))FB.signInWithRedirect(p);else alert('Sign-in failed: '+(e.code||e.message))})}
-async function initFb(){if(!FIREBASE_CONFIG)return;$('hAcct').classList.remove('hide');if(REQUIRE_SIGNIN)LK.add('needsign');
-  try{await loadJs('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');await loadJs('https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js');
-    firebase.initializeApp(FIREBASE_CONFIG);FB=firebase.auth();FB.onAuthStateChanged(u=>{acctDraw(u);if(u)LK.remove('needsign');else if(REQUIRE_SIGNIN)LK.add('needsign')})}
-  catch(e){$('acSt').textContent='Sign-in could not load. Check internet. / इन्टरनेट जाँच गर्नुहोस्।'}}
-$('acIn').onclick=()=>FB&&signIn();$('gGo2').onclick=()=>FB&&signIn();$('acOut').onclick=()=>FB&&FB.signOut();
-initFb();
-
-/* ---------- THEME ICON + LOCK ON START ---------- */
-try{if(localStorage.getItem('hisab_theme')==='dark'){document.documentElement.dataset.theme='dark';$('theme').textContent='☀️'}}catch(e){}
-if(pinData())lockNow();
-
-/* ---------- INCOME & EXPENSE (AMDANI-KHARCHA) ---------- */
-const EK='hisab_ledger',getE=()=>store(EK),saveE=a=>save(EK,a);
-const MS_EN=['Bai','Jes','Asa','Shr','Bha','Asw','Kar','Man','Pou','Mag','Fal','Cha'];
-const mKey=bs=>{const p=bs.split('-').map(Number);return p[0]+'-'+String(p[1]).padStart(2,'0')};
-const mLabel=(k,long)=>{const p=k.split('-').map(Number),n=LANG==='en'?(long?MN[p[1]-1].split(' ')[0]:MS_EN[p[1]-1]):MN[p[1]-1].split(' ')[1];return long?n+' '+nd(p[0]):n};
-const bl=(e,n)=>'<span class="en">'+e+'</span> <span class="ne">'+n+'</span>';
-const monthsOf=L=>{const S={};L.forEach(e=>{const k=mKey(e.bs);S[k]=S[k]||{a:0,k:0};S[k].a+=e.a;S[k].k+=e.k});return S};
-let edEdit=null,edShow=false,edView='day';
-const q2=x=>String(x).padStart(2,'0');
-const addDays=(ad,n)=>{const t=new Date(ad+'T00:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)};
-const wkStart=ad=>{const t=new Date(ad+'T00:00:00Z');return addDays(ad,-t.getUTCDay())};
-const bsOfAd=ad=>{const p=ad.split('-').map(Number);return ad2bs(new Date(p[0],p[1]-1,p[2]))};
-const bsPlain=ad=>{const b=bsOfAd(ad);return b?b.join('-'):ad},bsTxt=ad=>nd(bsPlain(ad));
-const gk=(e,m)=>m==='day'?e.ad:m==='week'?wkStart(e.ad):mKey(e.bs);
-function groups(L,m){const S={};L.forEach(e=>{const k=gk(e,m);S[k]=S[k]||{a:0,k:0};S[k].a+=e.a;S[k].k+=e.k});return S}
-const mon=m=>LANG==='en'?MS_EN[m-1]:MN[m-1].split(' ')[1];
-function glab(k,m){if(m==='month'){const p=k.split('-').map(Number);return[mLabel(k),nd(p[0])]}const b=bsOfAd(k)||[0,1,0];return m==='day'?[nd(b[2]),mon(b[1])]:[nd(b[2])+' '+mon(b[1]),nd(b[0])]}
-function grow(k,m){if(m==='month')return mLabel(k,1);if(m==='day'){const p=k.split('-').map(Number);return bsTxt(k)+' · '+WD[new Date(p[0],p[1]-1,p[2]).getDay()]}return bsTxt(k)+' → '+bsTxt(addDays(k,6))}
-$('edM').innerHTML=MN.map((x,k)=>`<option value="${k+1}">${k+1} - ${x.split(' ')[1]}</option>`).join('');
-(()=>{const b=ad2bs(new Date());if(b){$('edY').value=b[0];$('edM').value=b[1];$('edD').value=b[2]}})();
-const inF=(e,f)=>f==='all'||mKey(e.bs)===f;
-function drawL(){const L=getE(),S=monthsOf(L),keys=Object.keys(S).sort(),cur=$('edF').value||'all';
-  $('edF').innerHTML='<option value="all">All months / सबै महिना</option>'+keys.slice().reverse().map(k=>`<option value="${k}">${mLabel(k,1)}</option>`).join('');
-  $('edF').value=(cur==='all'||keys.includes(cur))?cur:'all';
-  const f=$('edF').value,list=L.filter(e=>inF(e,f)).sort((x,y)=>y.ad.localeCompare(x.ad)||String(y.id).localeCompare(String(x.id)));
-  const TA=list.reduce((s,e)=>s+e.a,0),TK=list.reduce((s,e)=>s+e.k,0);
-  $('edTot').classList.toggle('hide',!edShow);
-  $('edTot').innerHTML=`<div class="card"><span>Total Amdani / कुल आम्दानी</span><b>${rs(TA)}</b></div><div class="card"><span>Total Kharcha / कुल खर्च</span><b>${rs(TK)}</b></div><div class="card big"><span>${TA>=TK?'Bachat (Savings) / बचत':'Ghata (Loss) / घाटा'}</span><b>${rs(Math.abs(TA-TK))}</b></div>`;
-  $('edSum').textContent=edShow?'Hide total / जम्मा लुकाउनुहोस्':'Σ Total / जम्मा';
-  const G=groups(list,edView),gks=Object.keys(G).sort(),ck=gks.slice(-(f==='all'?(edView==='day'?14:12):gks.length)),
-    mx=Math.max(1,...ck.map(k=>Math.max(G[k].a,G[k].k))),W=360,H=210,pl=40,pb=34,pt=12,pr=6,cw=(W-pl-pr)/Math.max(ck.length,1),bh=H-pt-pb,bw=Math.max(2,Math.min(14,cw/2-1.5)),step=ck.length>24?3:ck.length>14?2:1;
-  const sh=v=>v>=1e7?+(v/1e7).toFixed(1)+'Cr':v>=1e5?+(v/1e5).toFixed(1)+'L':v>=1e3?+(v/1e3).toFixed(1)+'k':Math.round(v);
-  let g='';for(let i=0;i<=4;i++){const y=pt+bh-bh*i/4;g+=`<line x1="${pl}" x2="${W-pr}" y1="${y}" y2="${y}" stroke="currentColor" opacity=".15"/><text x="${pl-4}" y="${y+3}" font-size="8" text-anchor="end" fill="currentColor">${nd(sh(mx*i/4))}</text>`}
-  ck.forEach((k,i)=>{const x=pl+cw*i+cw/2,ha=bh*G[k].a/mx,hk=bh*G[k].k/mx,lb=glab(k,edView);g+=`<rect x="${x-bw-.5}" y="${pt+bh-ha}" width="${bw}" height="${ha}" fill="#16a34a"/><rect x="${x+.5}" y="${pt+bh-hk}" width="${bw}" height="${hk}" fill="#ea580c"/>`+(i%step?'':`<text x="${x}" y="${H-pb+12}" font-size="8" text-anchor="middle" fill="currentColor">${lb[0]}</text><text x="${x}" y="${H-pb+22}" font-size="7" text-anchor="middle" fill="currentColor" opacity=".7">${lb[1]}</text>`)});
-  const VT={day:'Daily Amdani vs Kharcha / दैनिक आम्दानी र खर्च',week:'Weekly Amdani vs Kharcha / साप्ताहिक आम्दानी र खर्च',month:'Monthly Amdani vs Kharcha / मासिक आम्दानी र खर्च'},TT2={day:'Daily table / दैनिक तालिका',week:'Weekly table / साप्ताहिक तालिका',month:'Monthly table / मासिक तालिका'},HC={day:'Date / मिति',week:'Week / हप्ता',month:'Month / महिना'};
-  $('edCh').innerHTML=ck.length?`<div style="margin-top:12px;font-weight:700">${VT[edView]}</div><svg viewBox="0 0 ${W} ${H}" style="width:100%;color:var(--ink)" role="img" aria-label="Bar chart">${g}</svg><div class="note"><span style="color:#16a34a">■</span> ${bl('Amdani','आम्दानी')} &nbsp; <span style="color:#ea580c">■</span> ${bl('Kharcha','खर्च')}${gks.length>ck.length?' · '+bl('latest '+ck.length,'पछिल्ला '+nd(ck.length)):''}</div>`:'';
-  $('edMo').innerHTML=gks.length?`<div style="margin-top:12px;font-weight:700">${TT2[edView]}</div><div class="tw" style="max-height:340px"><table><tr><th>${HC[edView]}</th><th>Amdani</th><th>Kharcha</th><th>Bachat</th></tr>`+gks.slice().reverse().map(k=>`<tr><td>${grow(k,edView)}</td><td>${fmt(G[k].a)}</td><td>${fmt(G[k].k)}</td><td>${fmt(G[k].a-G[k].k)}</td></tr>`).join('')+`<tr style="font-weight:700"><td>Total / जम्मा</td><td>${fmt(TA)}</td><td>${fmt(TK)}</td><td>${fmt(TA-TK)}</td></tr></table></div>`:'';
-  $('edL').innerHTML=list.length?list.map(e=>`<div class="hr"><span class="note">${nd(e.bs)}</span> <b>${esc(e.t)}</b>\n${e.a?'<span style="color:#16a34a">'+bl('Amdani','आम्दानी')+': '+rs(e.a)+'</span> ':''}${e.k?'<span style="color:#ea580c">'+bl('Kharcha','खर्च')+': '+rs(e.k)+'</span>':''}\n<button ${bt} data-ee="${e.id}">${bl('Edit','सच्याउनुहोस्')}</button> <button ${bt} data-ed="${e.id}">${bl('Delete','हटाउनुहोस्')}</button></div>`).join(''):'<div class="note">No entries yet. Add your first entry above. / अहिलेसम्म कुनै विवरण छैन। माथि पहिलो विवरण थप्नुहोस्।</div>';
-  $('edL').querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{if(!confirm('Delete this entry? / हटाउने?'))return;saveE(getE().filter(x=>x.id!==b.dataset.ed));drawL()});
-  $('edL').querySelectorAll('[data-ee]').forEach(b=>b.onclick=()=>{const e=getE().find(x=>x.id===b.dataset.ee);if(!e)return;const p=e.bs.split('-').map(Number);
-    $('edY').value=p[0];$('edM').value=p[1];$('edD').value=p[2];$('edT').value=e.t==='(no title)'?'':e.t;$('edA').value=e.a||'';$('edK').value=e.k||'';edEdit=e.id;$('edSv').textContent='Update entry / अपडेट';window.scrollTo(0,0)})}
-$('edSv').onclick=()=>{const y=+$('edY').value,m=+$('edM').value,d=+$('edD').value,t=$('edT').value.trim(),a=parseFloat($('edA').value)||0,k=parseFloat($('edK').value)||0;
-  if(!(y>=2000&&y<=2090)||!(d>=1&&d<=bsLen(y,m))){alert('Check the date. / मिति जाँच गर्नुहोस्।');return}
-  if(a<0||k<0||!(a>0||k>0)){alert('Enter Amdani or Kharcha (not below 0). / आम्दानी वा खर्च हाल्नुहोस्।');return}
-  const e={id:edEdit||String(Date.now()),ad:iso(bs2ad(y,m,d)),bs:y+'-'+m+'-'+d,t:t||'(no title)',a,k},L=getE();
-  if(edEdit){const i=L.findIndex(x=>x.id===edEdit);if(i>=0)L[i]=e;else L.push(e)}else L.push(e);
-  saveE(L);edEdit=null;$('edSv').textContent='Add entry / थप्नुहोस्';$('edT').value='';$('edA').value='';$('edK').value='';drawL()};
-$('edF').onchange=drawL;
-$('edV').querySelectorAll('button').forEach(b=>b.onclick=()=>{edView=b.dataset.v;$('edV').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));drawL()});
-$('edSum').onclick=()=>{edShow=!edShow;drawL()};
-$('edBk').onclick=()=>show('bak');$('nToL').onclick=()=>show('ledger');
-$('edXl').onclick=()=>{if(typeof XLSX==='undefined'){alert('Excel library could not load. Check internet. / इन्टरनेट जाँच गर्नुहोस्।');return}
-  const L=getE().sort((x,y)=>x.ad.localeCompare(y.ad)),f=$('edF').value,sel=L.filter(e=>inF(e,f)),S=monthsOf(L),keys=Object.keys(S).sort();
-  const TA=sel.reduce((s,e)=>s+e.a,0),TK=sel.reduce((s,e)=>s+e.k,0);
-  const w1=XLSX.utils.aoa_to_sheet([['Date (BS)','Date (AD)','Title','Amdani (Income)','Kharcha (Expense)'],...sel.map(e=>[e.bs,e.ad,e.t,e.a||'',e.k||'']),[],['Total','','',TA,TK],['Bachat (Savings)','','',TA-TK]]);w1['!cols']=[{wch:12},{wch:12},{wch:30},{wch:16},{wch:16}];
-  const w2=XLSX.utils.aoa_to_sheet([['Month (BS)','Amdani','Kharcha','Bachat'],...keys.map(k=>{const p=k.split('-').map(Number);return[MN[p[1]-1].split(' ')[0]+' '+p[0],S[k].a,S[k].k,S[k].a-S[k].k]}),[],['Total',keys.reduce((s,k)=>s+S[k].a,0),keys.reduce((s,k)=>s+S[k].k,0),keys.reduce((s,k)=>s+S[k].a-S[k].k,0)]]);w2['!cols']=[{wch:16},{wch:14},{wch:14},{wch:14}];
-  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,w1,'Entries');const mk=(m,name,hd)=>{const G=groups(L,m),ks=Object.keys(G).sort(),t=c=>ks.reduce((s,k)=>s+G[k][c],0),
-    w=XLSX.utils.aoa_to_sheet([[hd,'Amdani','Kharcha','Bachat'],...ks.map(k=>[m==='day'?k+' (BS '+bsPlain(k)+')':k+' to '+addDays(k,6)+' (BS '+bsPlain(k)+')',G[k].a,G[k].k,G[k].a-G[k].k]),[],['Total',t('a'),t('k'),t('a')-t('k')]]);w['!cols']=[{wch:38},{wch:14},{wch:14},{wch:14}];XLSX.utils.book_append_sheet(wb,w,name)};
-  mk('day','Daily','Date (AD)');mk('week','Weekly','Week (Sun to Sat)');XLSX.utils.book_append_sheet(wb,w2,'Month-wise');XLSX.writeFile(wb,'Amdani-Kharcha.xlsx')};
-
-/* ---------- BACKUP / RESTORE ---------- */
-const BKEYS=['hisab_notes','hisab_rem','hisab_hist','hisab_ledger','hisab_lang','hisab_theme'];
-function bkData(){const o={app:'hisab',v:1,time:new Date().toISOString(),data:{}};BKEYS.forEach(k=>{try{const v=localStorage.getItem(k);if(v!==null)o.data[k]=v}catch(e){}});return o}
-function bkApply(o){if(!o||o.app!=='hisab'||!o.data)return false;BKEYS.forEach(k=>{if(typeof o.data[k]==='string'){try{localStorage.setItem(k,o.data[k])}catch(e){}}});return true}
-function bkDraw(){let t='';try{t=localStorage.getItem('hisab_lastbk')||''}catch(e){}
-  $('bkInfo').textContent='Notes '+store('hisab_notes').length+' · Reminders '+store('hisab_rem').length+' · Income & Expense '+getE().length+' · '+(t?'Last backup / अन्तिम ब्याकअप: '+new Date(+t).toLocaleDateString():'No backup yet / अहिलेसम्म ब्याकअप छैन')}
-$('bkSv').onclick=()=>{const blob=new Blob([JSON.stringify(bkData())],{type:'application/json'}),name='Hisab-Backup-'+new Date().toISOString().slice(0,10)+'.json';
-  const done=()=>{try{localStorage.setItem('hisab_lastbk',String(Date.now()))}catch(e){}bkDraw()};
-  const dl=()=>{const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500);done()};
-  try{const f=new File([blob],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f],title:'Hisab Backup'}).then(done).catch(e=>{if(e&&e.name!=='AbortError')dl()});return}}catch(e){}
-  dl()};
-$('bkRs').onclick=()=>{const f=$('bkFile').files[0];if(!f){alert('Choose a backup file first. / पहिले ब्याकअप फाइल छान्नुहोस्।');return}
-  const r=new FileReader();r.onload=()=>{let o=null;try{o=JSON.parse(r.result)}catch(e){}
-    if(!o||o.app!=='hisab'){alert('This is not a Hisab backup file. / यो ब्याकअप फाइल होइन।');return}
-    if(!confirm('Replace the data on this phone with this backup? / यो फोनको डाटा ब्याकअपले बदल्ने?'))return;
-    if(bkApply(o)){alert('Restored. The app will reload. / फिर्ता भयो। एप फेरि खुल्छ।');location.reload()}};r.readAsText(f)};
-try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist()}catch(e){}
-
-show((location.hash||'').slice(1));
-applyLang();
-
-
-</script>
 </body>
 </html>
