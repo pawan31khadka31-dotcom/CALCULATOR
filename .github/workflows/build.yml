@@ -23,14 +23,14 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Prepare Web Assets & Capacitor
+      - name: Prepare Web Assets & Stable Capacitor 6
         run: |
           mkdir -p www
           cp -r index.html www/ 2>/dev/null || true
           cp -r *.png *.svg *.js *.css *.json www/ 2>/dev/null || true
           echo '{"appId": "com.pawankhadka.hisab","appName": "Hisab Calculator","webDir": "www","bundledWebRuntime": false}' > capacitor.config.json
           npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android @capacitor-community/admob
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor-community/admob@6
           npx cap add android
 
       - name: Inject AdMob App ID
