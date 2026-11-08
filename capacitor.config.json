@@ -1,0 +1,6 @@
+{
+  "appId": "com.pawankhadka.hisab",
+  "appName": "Hisab Calculator",
+  "webDir": ".",
+  "bundledWebRuntime": false
+}
