@@ -1,0 +1,119 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Prepare Web Assets & Capacitor
+        run: |
+          set -e
+          mkdir -p www
+
+          # Copy the website into the Android WebView bundle.
+          cp index.html www/
+          for file in *.html; do
+            [ -f "$file" ] && cp "$file" www/
+          done
+          for pattern in '*.png' '*.svg' '*.js' '*.css' '*.json' '*.webmanifest'; do
+            for file in $pattern; do
+              [ -f "$file" ] && cp "$file" www/
+            done
+          done
+
+          # Import the AdMob package properly so Capacitor registers its JS plugin.
+          cat > admob-entry.js <<'EOF'
+          import { AdMob, BannerAdSize, BannerAdPosition } from '@capacitor-community/admob';
+
+          async function showTestBanner() {
+            // Do nothing when this same website is opened in a normal browser.
+            if (!window.Capacitor || window.Capacitor.getPlatform() !== 'android') return;
+
+            try {
+              await AdMob.initialize();
+              await AdMob.showBanner({
+                // Google's official Android banner demo ID. Replace only after testing works.
+                adId: 'ca-app-pub-3940256099942544/9214589741',
+                adSize: BannerAdSize.BANNER,
+                position: BannerAdPosition.BOTTOM_CENTER,
+                margin: 0,
+                isTesting: true
+              });
+              console.info('AdMob test banner request sent.');
+            } catch (error) {
+              console.error('AdMob banner failed to initialize or load:', error);
+            }
+          }
+
+          if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', showTestBanner, { once: true });
+          } else {
+            showTestBanner();
+          }
+          EOF
+
+          npm init -y
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor-community/admob@6 esbuild
+          npx esbuild admob-entry.js --bundle --platform=browser --format=iife --outfile=www/admob-init.js
+
+          # Load the bundled AdMob bridge code in the Android app only.
+          python3 - <<'PY'
+          from pathlib import Path
+          page = Path('www/index.html')
+          html = page.read_text(encoding='utf-8')
+          marker = '<script src="admob-init.js"></script>'
+          if marker not in html:
+              if '</body>' not in html:
+                  raise SystemExit('Could not find </body> in www/index.html')
+              html = html.replace('</body>', f'  {marker}\n</body>', 1)
+          page.write_text(html, encoding='utf-8')
+          PY
+
+          echo '{"appId":"com.pawankhadka.hisab","appName":"Hisab Calculator","webDir":"www","bundledWebRuntime":false}' > capacitor.config.json
+          npx cap add android
+          npx cap sync android
+
+          # Restore the custom calculator icon where the Android resources exist.
+          for d in android/app/src/main/res/mipmap-*; do
+            [ -d "$d" ] || continue
+            [ -f icon-192.png ] && cp icon-192.png "$d/ic_launcher.png"
+            [ -f icon-192.png ] && cp icon-192.png "$d/ic_launcher_round.png"
+          done
+          if [ -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml ]; then
+            rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
+          fi
+
+      - name: Inject AdMob App ID
+        run: |
+          set -e
+          sed -i '/<\/application>/i\        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-4910288899576442~6619635154" />' android/app/src/main/AndroidManifest.xml
+
+      - name: Build APK with Gradle
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: hisab-calculator-admob-test
+          path: android/app/build/outputs/apk/debug/app-debug.apk
