@@ -23,15 +23,45 @@ jobs:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Prepare Web Assets & Stable Capacitor 6
+      - name: Prepare Web Assets & Capacitor
         run: |
           mkdir -p www
           cp -r index.html www/ 2>/dev/null || true
           cp -r *.png *.svg *.js *.css *.json www/ 2>/dev/null || true
+          
+          # Inject AdMob banner code into www/index.html
+          cat << 'EOF' >> www/index.html
+          <script>
+          document.addEventListener("DOMContentLoaded", async function() {
+            if (window.Capacitor && window.Capacitor.isPluginAvailable("AdMob")) {
+              try {
+                const AdMob = window.Capacitor.Plugins.AdMob;
+                await AdMob.initialize({ initializeForTesting: false });
+                await AdMob.showBanner({
+                  adId: "ca-app-pub-4910288899576442/2691823429",
+                  adSize: "BANNER",
+                  position: "BOTTOM_CENTER",
+                  margin: 0,
+                  isTesting: false
+                });
+              } catch (err) {}
+            }
+          });
+          </script>
+          EOF
+
           echo '{"appId": "com.pawankhadka.hisab","appName": "Hisab Calculator","webDir": "www","bundledWebRuntime": false}' > capacitor.config.json
           npm init -y
           npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor-community/admob@6
           npx cap add android
+
+          # Restore your custom calculator icon
+          for d in android/app/src/main/res/mipmap-*; do
+            cp icon-192.png $d/ic_launcher.png 2>/dev/null || true
+            cp icon-192.png $d/ic_launcher_round.png 2>/dev/null || true
+            cp icon-512.png $d/ic_launcher_foreground.png 2>/dev/null || true
+          done
+          rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher*.xml 2>/dev/null || true
 
       - name: Inject AdMob App ID
         run: |
