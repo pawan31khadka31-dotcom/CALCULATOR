@@ -29,26 +29,23 @@ jobs:
           cp -r index.html www/ 2>/dev/null || true
           cp -r *.png *.svg *.js *.css *.json www/ 2>/dev/null || true
           
+          # Inject AdMob banner code into www/index.html
           cat << 'EOF' >> www/index.html
           <script>
           document.addEventListener("DOMContentLoaded", async function() {
-            setTimeout(async function() {
+            if (window.Capacitor && window.Capacitor.isPluginAvailable("AdMob")) {
               try {
-                if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.AdMob) {
-                  const AdMob = window.Capacitor.Plugins.AdMob;
-                  await AdMob.initialize({ requestTrackingAuthorization: true });
-                  await AdMob.showBanner({
-                    adId: "ca-app-pub-4910288899576442/2691823429",
-                    position: "BOTTOM_CENTER",
-                    size: "BANNER",
-                    margin: 0,
-                    isTesting: false
-                  });
-                }
-              } catch (e) {
-                console.error("AdMob error: ", e);
-              }
-            }, 1000);
+                const AdMob = window.Capacitor.Plugins.AdMob;
+                await AdMob.initialize({ initializeForTesting: false });
+                await AdMob.showBanner({
+                  adId: "ca-app-pub-4910288899576442/2691823429",
+                  adSize: "BANNER",
+                  position: "BOTTOM_CENTER",
+                  margin: 0,
+                  isTesting: false
+                });
+              } catch (err) {}
+            }
           });
           </script>
           EOF
@@ -58,6 +55,7 @@ jobs:
           npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6 @capacitor-community/admob@6
           npx cap add android
 
+          # Restore your custom calculator icon
           for d in android/app/src/main/res/mipmap-*; do
             cp icon-192.png $d/ic_launcher.png 2>/dev/null || true
             cp icon-192.png $d/ic_launcher_round.png 2>/dev/null || true
@@ -65,17 +63,9 @@ jobs:
           done
           rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher*.xml 2>/dev/null || true
 
-      - name: Configure Android Manifest & AdMob Registration
+      - name: Inject AdMob App ID
         run: |
-          sed -i '/<uses-permission android:name="android.permission.INTERNET"/!{/<application/i \    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>' android/app/src/main/AndroidManifest.xml
           sed -i '/<\/application>/i \        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-4910288899576442~6619635154"/>' android/app/src/main/AndroidManifest.xml
-
-          MAIN_ACTIVITY="android/app/src/main/java/com/pawankhadka/hisab/MainActivity.java"
-          if [ -f "$MAIN_ACTIVITY" ]; then
-            sed -i 's/import com.getcapacitor.BridgeActivity;/import com.getcapacitor.BridgeActivity;\nimport app.plugin.admob.AdMob;/' "$MAIN_ACTIVITY" || true
-            sed -i '/public class MainActivity extends BridgeActivity {/a \    @Override\n    public void onCreate(Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n        registerPlugin(AdMob.class);\n    }' "$MAIN_ACTIVITY" || true
-            sed -i 's/import android.os.Bundle;/import android.os.Bundle;/' "$MAIN_ACTIVITY" || true
-          fi
 
       - name: Build APK with Gradle
         run: |
