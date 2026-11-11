@@ -11,8 +11,9 @@
 <meta name="robots" content="index,follow">
 <title>Hisab Calculator | Byaj, SIP, EMI and Converters for Nepal</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="apple-touch-icon" href="icon-192.png">
-<link rel="icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
@@ -421,22 +422,7 @@ function evalX(e,deg){const x=pc(e).replace(/ mod /g,'%').replace(/×/g,'*').rep
   if(!/^[0-9+\-*/%().\s]*$/.test(x.replace(new RegExp('\\b('+names.join('|')+')\\b','g'),'')))throw 0;
   const R=deg?Math.PI/180:1,f={asin:a=>Math.asin(a)/R,acos:a=>Math.acos(a)/R,atan:a=>Math.atan(a)/R,sin:a=>{const v=Math.sin(a*R);return Math.abs(v)<1e-12?0:v},cos:a=>{const v=Math.cos(a*R);return Math.abs(v)<1e-12?0:v},tan:a=>Math.tan(a*R),log:Math.log10,ln:Math.log,sqrt:Math.sqrt,cbrt:Math.cbrt,exp:Math.exp,abs:Math.abs,fact:n=>{if(n<0||n%1||n>170)return NaN;let r=1;for(let i=2;i<=n;i++)r*=i;return r},PI:Math.PI,E:Math.E};
   return Function(...Object.keys(f),'"use strict";return ('+x+')')(...Object.values(f))}
-function Std(){const{L}=useC(),[mode,setMode]=useState('basic'),[deg,setDeg]=useState(true),[e,setE]=useState(''),[r,setR]=useState(''),[fresh,setFresh]=useState(false),[mem,setMem]=useState(0),
-  ev=()=>{const x=evalX(e,deg);if(!isFinite(x))throw 0;return +x.toPrecision(12)},val=()=>{try{return ev()}catch(_){return parseFloat(String(r).replace(/,/g,''))||0}};
-  const press=k=>{
-    if(k==='C'){setE('');setR('');setFresh(false);return}
-    if(k==='⌫'){setE(e.slice(0,-1));return}
-    if(k==='='){try{const v=ev();setR(fmt(v));setE(String(v));setFresh(true)}catch(_){setR(L('Error','त्रुटि'))}return}
-    if(k==='MC'){setMem(0);return}if(k==='MS'){setMem(val());return}if(k==='M+'||k==='M−'){setMem(mem+(k==='M+'?1:-1)*val());return}
-    const t=k==='MR'?String(mem):(SK[k]??k),cont=/^(?: mod |[+×÷−%^!])/.test(t);setE(fresh&&!cont?t:e+t);setFresh(false);setR('')};
-  const B=(k,c,sz)=>html`<button key=${k} onClick=${()=>press(k)} class=${sz+' rounded-xl font-semibold transition active:scale-95 '+c}>${k}</button>`,
-  basic=['C','(',')','⌫','7','8','9','÷','4','5','6','×','1','2','3','−','0','.','%','+'],
-  sci=['sin','cos','tan','ln','log','x²','x³','xʸ','√','∛','eˣ','10ˣ','1/x','x!','|x|','π','e','sin⁻¹','cos⁻¹','tan⁻¹','mod'];
-  return html`<div class="space-y-4"><${Seg} v=${mode} set=${setMode} opts=${[['basic',L('Basic','सामान्य')],['sci',L('Scientific','वैज्ञानिक')]]}/><${Card}>
-  <div class="mb-4 rounded-xl bg-slate-100 p-4 text-right dark:bg-slate-950"><div class="mb-1 flex items-center justify-between text-xs">${mode==='sci'?html`<button onClick=${()=>setDeg(!deg)} class="rounded-md border border-cyan-500/50 px-2 py-0.5 font-semibold text-cyan-600 dark:text-cyan-400">${deg?'DEG':'RAD'}</button>`:html`<span/>`}<span class="text-amber-500">${mem!==0?'M '+fmt(mem):''}</span></div><div class="min-h-[1.25rem] break-all font-mono text-sm text-slate-500">${r?e:''}</div><div class="break-all font-mono text-4xl font-semibold">${r||e||'0'}</div></div>
-  ${mode==='sci'&&html`<div class="mb-2 grid grid-cols-5 gap-2">${['MC','MR','M+','M−','MS'].map(k=>B(k,'bg-slate-100 text-slate-500 dark:bg-slate-800','h-9 text-xs'))}</div><div class="mb-3 grid grid-cols-4 gap-2">${sci.map(k=>B(k,'bg-slate-100 text-cyan-700 dark:bg-slate-800 dark:text-cyan-300','h-11 text-sm'))}</div>`}
-  <div class="grid grid-cols-4 gap-2">${basic.map(k=>B(k,'÷×−+%'.includes(k)?'bg-amber-500/15 text-amber-600 dark:text-amber-400':k==='C'?'bg-red-500/15 text-red-500':'bg-slate-100 dark:bg-slate-800','h-14 text-lg'))}${B('=','col-span-4 bg-amber-500 text-slate-900','h-14 text-lg')}</div><//></div>`}
-/* ---------- income / expense ---------- */
+https://github.com/pawan31khadka31-dotcom/CALCULATOR/blob/main/index.html
 const addDays=(s,n)=>{const t=new Date(s+'T00:00:00Z');t.setUTCDate(t.getUTCDate()+n);return t.toISOString().slice(0,10)},wkS=s=>addDays(s,-new Date(s+'T00:00:00Z').getUTCDay()),
   bsOf=s=>{const[p,q,r]=s.split('-').map(Number);return ad2bs(new Date(p,q-1,r))||[0,1,0]},bsT=s=>bsOf(s).join('-'),
   gkey=(e,m)=>m==='day'?e.date:m==='week'?wkS(e.date):(b=>b[0]+'-'+String(b[1]).padStart(2,'0'))(bsOf(e.date)),
