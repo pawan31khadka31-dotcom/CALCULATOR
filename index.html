@@ -527,10 +527,141 @@ function Ledger(){const{L,cloud,openCloud}=useC(),[data,setData]=useStore('ledge
   <div class="flex items-center justify-between"><${Ghost} onClick=${()=>confirm(L('Clear all entries?','सबै विवरण मेटाउने?'))&&setData([])}>${L('Clear History','इतिहास मेटाउनुहोस्')}<//><${TextBtn} onClick=${()=>setOpt(!opt)}>${L('More options','थप विकल्प')} ${opt?'∧':'∨'}<//></div>
   ${opt&&html`<${Card}><p class="mb-3 text-xs text-slate-500">${L('Optional: download your entries as an Excel file.','वैकल्पिक: विवरण एक्सेल फाइलमा डाउनलोड गर्नुहोस्।')}</p><${Primary} onClick=${xl}>${L('Export to Excel','एक्सेलमा निकाल्नुहोस्')}<//><//>`}</div>`}
 /* ---------- notes & reminders ---------- */
-function Notes(){const{L}=useC(),[n,setN]=useStore('notes',[]),[t,setT]=useState(''),[b,setB]=useState('');
-  return html`<div class="space-y-4"><${Card}><div class="grid gap-4"><${Txt} label=${L('Title','शीर्षक')} v=${t} set=${setT}/><${Field} label=${L('Note / Khata','नोट / खाता')}><textarea rows="4" class=${inp+' h-auto py-2'} value=${b} onInput=${e=>setB(e.target.value)}/><//></div><//>
-  <${Primary} onClick=${()=>{if(!t.trim()&&!b.trim())return;setN([{id:Date.now(),t:t.trim(),b:b.trim(),d:new Date().toLocaleDateString()},...n]);setT('');setB('')}}>${L('Save note','नोट सुरक्षित')}<//>
-  <div class="space-y-2">${n.map(x=>html`<${Card} key=${x.id} c="!p-3"><div class="flex justify-between gap-3"><div class="min-w-0"><b class="block truncate text-sm">${x.t||L('(no title)','(शीर्षक छैन)')}</b><span class="text-xs text-slate-500">${x.d}</span><p class="mt-1 whitespace-pre-wrap break-words text-sm">${x.b}</p></div><${TextBtn} danger onClick=${()=>setN(n.filter(y=>y.id!==x.id))}>${L('Delete','हटाउनुहोस्')}<//></div><//>`)}</div></div>`}
+function Notes(){const{L}=useC(),[notes,setNotes]=useStore('notes',[]),[q,setQ]=useState(''),[colorFilter,setColorFilter]=useState('all'),[activeId,setActiveId]=useState(null);
+  const colorThemes={
+    default:{bg:'bg-white dark:bg-slate-900',border:'border-slate-200 dark:border-slate-800',dot:'#94a3b8',lbl:['Default','सामान्य']},
+    amber:{bg:'bg-amber-500/10 dark:bg-amber-950/30',border:'border-amber-400 dark:border-amber-700/60',dot:'#f59e0b',lbl:['Yellow','पहेंलो']},
+    emerald:{bg:'bg-emerald-500/10 dark:bg-emerald-950/30',border:'border-emerald-400 dark:border-emerald-700/60',dot:'#10b981',lbl:['Green','हरियो']},
+    cyan:{bg:'bg-cyan-500/10 dark:bg-cyan-950/30',border:'border-cyan-400 dark:border-cyan-700/60',dot:'#06b6d4',lbl:['Blue','नीलो']},
+    rose:{bg:'bg-rose-500/10 dark:bg-rose-950/30',border:'border-rose-400 dark:border-rose-700/60',dot:'#f43f5e',lbl:['Red','रातो']},
+    purple:{bg:'bg-purple-500/10 dark:bg-purple-950/30',border:'border-purple-400 dark:border-purple-700/60',dot:'#a855f7',lbl:['Purple','बैजनी']}
+  };
+  const colorKeys=['default','amber','emerald','cyan','rose','purple'];
+  const textColors=['#0f172a','#ef4444','#10b981','#f59e0b','#3b82f6','#8b5cf6'];
+  const highlighters=[{c:'transparent',l:'✕'},{c:'#fef08a',l:'🟡'},{c:'#a7f3d0',l:'🟢'},{c:'#fbcfe8',l:'🔴'},{c:'#a5f3fc',l:'🔵'},{c:'#e9d5ff',l:'🟣'}];
+  
+  const updateNote=(id,data)=>{setNotes(prev=>prev.map(x=>x.id===id?{...x,...data,ut:Date.now()}:x))};
+  const deleteNote=(id)=>{if(confirm(L('Delete this note?','यो नोट हटाउने?'))){setNotes(prev=>prev.filter(x=>x.id!==id))}};
+  const addNote=()=>{const id=Date.now();setNotes([{id,t:'',b:'',color:'amber',d:new Date().toLocaleDateString()},...notes]);setActiveId(id)};
+  const fmtCmd=(cmd,val=null)=>{document.execCommand(cmd,false,val)};
+  
+  const filtered=notes.filter(x=>{
+    const matchCol=colorFilter==='all'||(x.color||'default')===colorFilter;
+    const s=q.trim().toLowerCase();
+    if(!s)return matchCol;
+    const t=(x.t||'').toLowerCase(),b=(x.b||'').replace(/<[^>]*>/g,'').toLowerCase();
+    return matchCol&&(t.includes(s)||b.includes(s));
+  });
+
+  return html`<div class="space-y-4">
+    <!-- Header & New Note Button -->
+    <div class="flex items-center justify-between gap-3">
+      <div>
+        <h2 class="text-base font-bold text-slate-900 dark:text-slate-100">${L('Word Notepad & Khata','वर्ड नोटप्याड र खाता')}</h2>
+        <span class="text-xs text-slate-500">${notes.length} ${L('notes saved','नोटहरू सुरक्षित')}</span>
+      </div>
+      <button onClick=${addNote} class="inline-flex h-10 items-center gap-1.5 rounded-xl bg-amber-500 px-4 text-xs font-bold text-slate-900 shadow-sm transition active:scale-95 hover:bg-amber-400 cursor-pointer">
+        <span>+ ${L('New Note','नयाँ नोट')}</span>
+      </button>
+    </div>
+
+    <!-- Search & Color Filter Bar -->
+    <div class="space-y-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div class="flex items-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-3 py-1.5 dark:border-slate-700 dark:bg-slate-950">
+        <span class="text-slate-400">🔍</span>
+        <input class="w-full bg-transparent text-xs text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100" placeholder=${L('Search notes by keyword...','शब्द खोज्नुहोस्...')} value=${q} onInput=${e=>setQ(e.target.value)}/>
+        ${q&&html`<button onClick=${()=>setQ('')} class="text-xs text-slate-400 hover:text-slate-600">✕</button>`}
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+        <span class="text-[11px] font-semibold text-slate-500 mr-1">${L('Filter:','फिल्टर:')}</span>
+        <button onClick=${()=>setColorFilter('all')} class=${'rounded-lg px-2.5 py-1 text-xs font-semibold transition '+(colorFilter==='all'?'bg-amber-500 text-slate-900':'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300')}>
+          ${L('All','सबै')} (${notes.length})
+        </button>
+        ${colorKeys.map(k=>{const count=notes.filter(x=>(x.color||'default')===k).length;if(count===0&&colorFilter!==k)return null;return html`<button key=${k} onClick=${()=>setColorFilter(k)} class=${'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold transition '+(colorFilter===k?'ring-2 ring-amber-500 bg-slate-200 dark:bg-slate-800':'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300')}>
+          <span class="h-2.5 w-2.5 rounded-full" style=${{backgroundColor:colorThemes[k].dot}}/>
+          <span>${L(...colorThemes[k].lbl)} (${count})</span>
+        </button>`})}
+      </div>
+    </div>
+
+    <!-- Notes List with Direct Inline Editing & Direct Deletion -->
+    ${filtered.length===0?html`
+      <div class="rounded-2xl border border-dashed border-slate-300 p-8 text-center dark:border-slate-700">
+        <p class="text-sm font-medium text-slate-500">${notes.length===0?L('No notes yet. Tap "+ New Note" to write one!','कुनै नोट छैन। नयाँ लेख्न "+ नयाँ नोट" थिच्नुहोस्!'):L('No matching notes found.','कुनै नोट भेटिएन।')}</p>
+      </div>
+    `:html`
+      <div class="space-y-4">
+        ${filtered.map(x=>{
+          const th=colorThemes[x.color||'default']||colorThemes.default;
+          const isAct=activeId===x.id;
+          return html`<div key=${x.id} class=${'rounded-2xl border p-4 shadow-sm transition ' + th.bg + ' ' + th.border} onClick=${()=>setActiveId(x.id)}>
+            <!-- Note Header: Direct Title Edit + Color Selector + Direct Delete Button -->
+            <div class="mb-3 flex items-start justify-between gap-2 border-b border-slate-200/50 pb-2 dark:border-slate-800/50">
+              <input class="w-full bg-transparent text-sm font-bold text-slate-900 outline-none placeholder:text-slate-400 dark:text-slate-100" placeholder=${L('Note title...','नोट शीर्षक...')} value=${x.t||''} onInput=${e=>updateNote(x.id,{t:e.target.value})}/>
+              <div class="flex items-center gap-2 shrink-0">
+                <!-- Direct Sticky Note Color Changer -->
+                <div class="flex items-center gap-1 rounded-full bg-black/5 p-1 dark:bg-white/5">
+                  ${colorKeys.map(ck=>html`<button key=${ck} title=${L(...colorThemes[ck].lbl)} onMouseDown=${e=>{e.preventDefault();updateNote(x.id,{color:ck})}} class=${'h-4 w-4 rounded-full transition '+(x.color===ck?'ring-2 ring-slate-900 dark:ring-white scale-110':'opacity-70 hover:opacity-100')} style=${{backgroundColor:colorThemes[ck].dot}}/>`)}
+                </div>
+                <!-- Direct Delete Button (NO EXTRA BUTTON NEEDED) -->
+                <button onClick=${e=>{e.stopPropagation();deleteNote(x.id)}} title=${L('Delete directly','हटाउनुहोस्')} class="grid h-7 w-7 place-items-center rounded-lg text-slate-400 transition hover:bg-red-500/15 hover:text-red-500 active:scale-95">
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            <!-- Simple Word Rich Text Toolbar (Bold, Italic, Text Color, Highlight Color) -->
+            <div class="mb-2 flex flex-wrap items-center gap-1 rounded-xl bg-slate-100/90 p-1.5 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 text-xs">
+              <!-- Bold -->
+              <button title="Bold (Ctrl+B)" onMouseDown=${e=>{e.preventDefault();fmtCmd('bold')}} class="grid h-7 w-7 place-items-center rounded-lg font-black hover:bg-slate-200 dark:hover:bg-slate-800">
+                B
+              </button>
+              <!-- Italic -->
+              <button title="Italic (Ctrl+I)" onMouseDown=${e=>{e.preventDefault();fmtCmd('italic')}} class="grid h-7 w-7 place-items-center rounded-lg font-serif italic font-bold hover:bg-slate-200 dark:hover:bg-slate-800">
+                I
+              </button>
+              <!-- Underline -->
+              <button title="Underline (Ctrl+U)" onMouseDown=${e=>{e.preventDefault();fmtCmd('underline')}} class="grid h-7 w-7 place-items-center rounded-lg underline font-bold hover:bg-slate-200 dark:hover:bg-slate-800">
+                U
+              </button>
+              <!-- Divider -->
+              <span class="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1"/>
+              <!-- Text Color Palette -->
+              <span class="text-[10px] font-bold text-slate-500 mr-0.5">A</span>
+              ${textColors.map(c=>html`<button key=${c} title=${'Text color: '+c} onMouseDown=${e=>{e.preventDefault();fmtCmd('foreColor',c)}} class="h-4 w-4 rounded-full border border-slate-300 dark:border-slate-700 hover:scale-125 transition" style=${{backgroundColor:c}}/>`)}
+              <!-- Divider -->
+              <span class="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1"/>
+              <!-- Highlight Palette -->
+              <span class="text-[10px] font-bold text-slate-500 mr-0.5">🖍️</span>
+              ${highlighters.map(h=>html`<button key=${h.c} title=${'Highlight: '+h.c} onMouseDown=${e=>{e.preventDefault();fmtCmd('hiliteColor',h.c)}} class="h-5 w-5 rounded text-[10px] grid place-items-center border border-slate-300 dark:border-slate-700 hover:scale-110 transition" style=${{backgroundColor:h.c}}>${h.l}</button>`)}
+              <!-- Divider -->
+              <span class="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1"/>
+              <!-- Bullet List -->
+              <button title="Bullet List" onMouseDown=${e=>{e.preventDefault();fmtCmd('insertUnorderedList')}} class="px-1.5 py-0.5 rounded text-xs font-bold hover:bg-slate-200 dark:hover:bg-slate-800">
+                • List
+              </button>
+            </div>
+
+            <!-- Direct Editable Note Body (Simple Word style contentEditable) -->
+            <div
+              contenteditable="true"
+              class="min-h-[90px] w-full rounded-xl bg-white/80 p-3 text-sm text-slate-900 outline-none border border-slate-200 focus:ring-2 focus:ring-amber-500/40 dark:bg-slate-950/80 dark:text-slate-100 dark:border-slate-800 whitespace-pre-wrap break-words"
+              placeholder=${L('Write note or khata details here...','यहाँ नोट वा खाता लेख्नुहोस्...')}
+              dangerouslySetInnerHTML=${{__html: x.b || ''}}
+              onInput=${e=>updateNote(x.id, {b: e.currentTarget.innerHTML})}
+            />
+
+            <!-- Note Footer info -->
+            <div class="mt-2 flex items-center justify-between text-[11px] text-slate-400">
+              <span>📅 ${x.d}</span>
+              <span class="italic text-emerald-600 dark:text-emerald-400">✓ ${L('Autosaved','स्वतः सुरक्षित')}</span>
+            </div>
+          </div>`
+        })}
+      </div>
+    `}
+  </div>`;
+}
 function Reminders(){const{L}=useC(),[r,setR]=useStore('reminders',[]),[t,setT]=useState(''),[d,setD]=useState(todayISO()),[h,setH]=useState('09:00'),now=Date.now();
   return html`<div class="space-y-4"><${Card}><div class="grid gap-4"><${Txt} label=${L('Reminder','रिमाइन्डर')} v=${t} set=${setT}/><div class="grid grid-cols-2 gap-3"><${Field} label=${L('Date','मिति')}><input class=${inp} type="date" value=${d} onInput=${e=>setD(e.target.value)}/><//><${Field} label=${L('Time','समय')}><input class=${inp} type="time" value=${h} onInput=${e=>setH(e.target.value)}/><//></div></div><//>
   <${Primary} onClick=${()=>{if(!t.trim())return;setR([...r,{id:Date.now(),t:t.trim(),d,h,done:false}]);setT('')}}>${L('Add reminder','रिमाइन्डर थप्नुहोस्')}<//>
