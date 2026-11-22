@@ -492,6 +492,7 @@ function Notes(){
   const[activeId,setActiveId]=useState(null);
   const[title,setTitle]=useState('');
   const[body,setBody]=useState('');
+  const[editorSession,setEditorSession]=useState(0);
   const[menu,setMenu]=useState(null);
   const[createMenu,setCreateMenu]=useState(false);
   const[language,setLanguage]=useState('en');
@@ -499,6 +500,11 @@ function Notes(){
   const[workSort,setWorkSort]=useState('date');
   const[editingWorkId,setEditingWorkId]=useState(null);
   const editOrderRef=useRef(null);
+  const editorRef=useRef(null);
+  const bodyRef=useRef('');
+  const titleRef=useRef('');
+  const activeIdRef=useRef(null);
+  useEffect(()=>{if(screen==='detail'&&editorRef.current){editorRef.current.innerHTML=bodyRef.current||''}},[screen,editorSession]);
   // Migrate the previous flat checklist into one work item without losing tasks.
   useEffect(()=>{if(todos.length && !Array.isArray(todos[0].tasks) && Object.prototype.hasOwnProperty.call(todos[0],'text')){setTodos([{id:'work-'+Date.now(),title:'Imported Tasks',targetDate:'',priority:3,status:'In Progress',tasks:todos.map(t=>({id:t.id,text:t.text||'',done:!!t.done}))}])}},[]);
 
@@ -510,30 +516,41 @@ function Notes(){
     const range=sel.getRangeAt(0);const node=range.startContainer;
     if(node.nodeType!==3)return;
     const offset=range.startOffset;const before=node.textContent.slice(0,offset);
-    const match=before.match(/([A-Za-z]{2,}) $/);if(!match)return;
+    const match=before.match(/([A-Za-z]{2,})[ \u00A0]$/);if(!match)return;
     const converted=romanToNepali(match[1]);if(converted===match[1])return;
     const after=node.textContent.slice(offset);
     const prefix=before.slice(0,before.length-match[1].length-1);
     node.textContent=prefix+converted+' '+after;
     const newRange=document.createRange();newRange.setStart(node,prefix.length+converted.length+1);newRange.collapse(true);sel.removeAllRanges();sel.addRange(newRange);
   };
-  const plain=(v)=>(v||'').replace(/<br\s*\/?\s*>/gi,'\\n').replace(/<[^>]+>/g,'').replace(/&nbsp;/g,' ');
-  const openNew=()=>{setActiveId(null);setTitle('');setBody('');setMenu(null);setCreateMenu(false);setScreen('detail')};
-  const openNote=(x)=>{setActiveId(x.id);setTitle(x.t||'');setBody(x.b||'');setMenu(null);setScreen('detail')};
+  const plain=(v)=>(v||'').replace(/<br\s*\/?\s*>/gi,'\n').replace(/<\/(div|p|li|h[1-6])>/gi,'\n').replace(/<[^>]+>/g,'').replace(/&nbsp;/gi,' ');
+  const saveDraft=(nextTitle,nextBody)=>{
+    const t=nextTitle!==undefined?nextTitle:titleRef.current;
+    const htmlBody=nextBody!==undefined?nextBody:(editorRef.current?editorRef.current.innerHTML:bodyRef.current);
+    const id=activeIdRef.current;
+    if(id===null&&!t.trim()&&!plain(htmlBody).trim())return;
+    if(id!==null){
+      setNotes(items=>items.map(x=>x.id===id?{...x,t:t.trim(),b:htmlBody,d:x.d||new Date().toLocaleDateString()}:x));
+    }else{
+      const newId=Date.now();
+      activeIdRef.current=newId;
+      setActiveId(newId);
+      setNotes(items=>[{id:newId,t:t.trim(),b:htmlBody,d:new Date().toLocaleDateString()},...items]);
+    }
+  };
+  const openNew=()=>{activeIdRef.current=null;titleRef.current='';bodyRef.current='';setActiveId(null);setTitle('');setBody('');setEditorSession(s=>s+1);setMenu(null);setCreateMenu(false);setScreen('detail')};
+  const openNote=(x)=>{activeIdRef.current=x.id;titleRef.current=x.t||'';bodyRef.current=x.b||'';setActiveId(x.id);setTitle(x.t||'');setBody(x.b||'');setEditorSession(s=>s+1);setMenu(null);setScreen('detail')};
   const saveNote=()=>{
-    const editor=document.getElementById('rich-note-editor');
-    const htmlBody=editor?editor.innerHTML:body;
-    if(!title.trim()&&!plain(htmlBody).trim()){setScreen('list');return}
-    const d=activeId!==null?(notes.find(x=>x.id===activeId)?.d||new Date().toLocaleDateString()):new Date().toLocaleDateString();
-    if(activeId!==null)setNotes(notes.map(x=>x.id===activeId?{...x,t:title.trim(),b:htmlBody,d}:x));
-    else setNotes([{id:Date.now(),t:title.trim(),b:htmlBody,d},...notes]);
+    const htmlBody=editorRef.current?editorRef.current.innerHTML:bodyRef.current;
+    bodyRef.current=htmlBody;
+    saveDraft(titleRef.current,htmlBody);
     setBody(htmlBody);setScreen('list');setMenu(null);
   };
-  const deleteActive=()=>{if(activeId!==null&&confirm(L('Delete this note?','यो नोट मेटाउने?')))setNotes(notes.filter(x=>x.id!==activeId));setScreen('list');setMenu(null)};
+  const deleteActive=()=>{const id=activeIdRef.current;if(id!==null&&!confirm(L('Delete this note?','यो नोट मेटाउने?')))return;if(id!==null)setNotes(items=>items.filter(x=>x.id!==id));activeIdRef.current=null;titleRef.current='';bodyRef.current='';setActiveId(null);setTitle('');setBody('');setScreen('list');setMenu(null)};
   const shareText=async(text,titleText)=>{try{if(navigator.share)await navigator.share({title:titleText||'Note',text});else if(navigator.clipboard){await navigator.clipboard.writeText(text);alert(L('Copied to clipboard.','कपी भयो।'))}else alert(text)}catch(e){}setMenu(null)};
-  const shareActive=()=>{const el=document.getElementById('rich-note-editor');shareText((title?title+'\\n':'')+(el?el.innerText:plain(body)),title)};
-  const formatText=(cmd)=>{const el=document.getElementById('rich-note-editor');if(!el)return;el.focus();document.execCommand(cmd,false,null);setBody(el.innerHTML)};
-  const insertLine=()=>{const el=document.getElementById('rich-note-editor');if(!el)return;el.focus();document.execCommand('insertHTML',false,'<br>');setBody(el.innerHTML)};
+  const shareActive=()=>{const el=editorRef.current||document.getElementById('rich-note-editor');shareText((titleRef.current?titleRef.current+'\n':'')+(el?el.innerText:plain(bodyRef.current)),titleRef.current)};
+  const formatText=(cmd)=>{const el=editorRef.current||document.getElementById('rich-note-editor');if(!el)return;el.focus();document.execCommand(cmd,false,null);bodyRef.current=el.innerHTML;setBody(el.innerHTML);saveDraft(titleRef.current,el.innerHTML)};
+  const insertLine=()=>{const el=editorRef.current||document.getElementById('rich-note-editor');if(!el)return;el.focus();document.execCommand('insertHTML',false,'<br>');bodyRef.current=el.innerHTML;setBody(el.innerHTML);saveDraft(titleRef.current,el.innerHTML)};
   const addWork=()=>{const title=prompt(L('Work title','कामको शीर्षक'));if(!title||!title.trim())return;const targetDate=prompt(L('Target date (YYYY-MM-DD, optional)','लक्ष्य मिति (YYYY-MM-DD, वैकल्पिक)'),'');const priorityRaw=prompt(L('Priority: 1=Critical, 2=High, 3=Normal, 4=Low','प्राथमिकता: 1=अत्यावश्यक, 2=उच्च, 3=सामान्य, 4=कम'),'3');const priority=Math.min(4,Math.max(1,parseInt(priorityRaw,10)||3));const item={id:'work-'+Date.now(),title:title.trim(),targetDate:(targetDate||'').trim(),priority,status:'Not Started',tasks:[]};setTodos(items=>[item,...items]);setExpandedWork(item.id)};
   const updateWork=(id,patch)=>setTodos(items=>items.map(w=>w.id===id?{...w,...patch}:w));
   const addSubtask=(work)=>{const text=prompt(L('Enter task','काम लेख्नुहोस्'));if(!text||!text.trim())return;setTodos(items=>items.map(w=>w.id===work.id?{...w,tasks:[...(w.tasks||[]),{id:Date.now()+Math.random(),text:text.trim(),done:false}],status:'In Progress'}:w))};
@@ -595,14 +612,14 @@ function Notes(){
     </style>
 
     ${screen==='detail'&&html`<div class="relative">
-      ${topbar(L('Notepad','नोटप्याड'),()=>{setScreen('list');setMenu(null)},saveNote)}
+      ${topbar(L('Notepad','नोटप्याड'),saveNote,saveNote)}
       ${langBar}
-      ${menu==='main'&&html`<div class="popup-menu"><button onClick=${deleteActive}>▣ ${L('Delete','मेटाउनुहोस्')}</button><button onClick=${shareActive}>♧ ${L('Share','शेयर')}</button></div>`}
+      ${menu==='main'&&html`<div class="popup-menu"><button type="button" onClick=${deleteActive}>▣ ${L('Delete','मेटाउनुहोस्')}</button><button type="button" onClick=${shareActive}>♧ ${L('Share','शेयर')}</button></div>`}
       <div class="paper">
-        <div class="paper-title"><span>${L('Title :','शीर्षक :')}</span><input value=${title} placeholder=${L('Enter title','शीर्षक लेख्नुहोस्')} onInput=${e=>setTitle(e.target.value)}/><span class="whitespace-nowrap text-xs font-semibold text-slate-500">${activeId!==null?(notes.find(x=>x.id===activeId)?.d||''):new Date().toLocaleDateString()}</span></div>
-        <div id="rich-note-editor" class="rich-editor" contenteditable="true" spellcheck="true" data-placeholder=${L('Start writing here...','यहाँ लेख्न सुरु गर्नुहोस्...')} .innerHTML=${body} onInput=${e=>{convertAtCursor(e.currentTarget);setBody(e.currentTarget.innerHTML)}}></div>
+        <div class="paper-title"><span>${L('Title :','शीर्षक :')}</span><input type="text" value=${title} placeholder=${L('Enter title','शीर्षक लेख्नुहोस्')} onChange=${e=>{titleRef.current=e.target.value;setTitle(e.target.value);saveDraft(e.target.value,undefined)}}/><span class="whitespace-nowrap text-xs font-semibold text-slate-500">${activeId!==null?(notes.find(x=>x.id===activeId)?.d||''):new Date().toLocaleDateString()}</span></div>
+        <div id="rich-note-editor" ref=${editorRef} class="rich-editor" contentEditable="true" spellCheck="true" data-placeholder=${L('Start writing here...','यहाँ लेख्न सुरु गर्नुहोस्...')} onInput=${e=>{convertAtCursor(e.currentTarget);const h=e.currentTarget.innerHTML;bodyRef.current=h;setBody(h);saveDraft(titleRef.current,h)}}></div>
       </div>
-      <div class="bottom-tools"><button class="tool-btn" title="Bold" onMouseDown=${e=>e.preventDefault()} onClick=${()=>formatText('bold')}>B</button><button class="tool-btn italic" title="Italic" onMouseDown=${e=>e.preventDefault()} onClick=${()=>formatText('italic')}>I</button><button class="tool-btn underline" title="Underline" onMouseDown=${e=>e.preventDefault()} onClick=${()=>formatText('underline')}>U</button><button class="tool-btn" title="New line" onClick=${insertLine}>↵</button><button class="tool-btn" title="To-do list" onClick=${()=>{setScreen('todos');setMenu(null)}}>☷</button></div>
+      <div class="bottom-tools"><button type="button" class="tool-btn" title="Bold" onMouseDown=${e=>e.preventDefault()} onClick=${()=>formatText('bold')}>B</button><button type="button" class="tool-btn italic" title="Italic" onMouseDown=${e=>e.preventDefault()} onClick=${()=>formatText('italic')}>I</button><button type="button" class="tool-btn underline" title="Underline" onMouseDown=${e=>e.preventDefault()} onClick=${()=>formatText('underline')}>U</button><button type="button" class="tool-btn" title="New line" onClick=${insertLine}>↵</button><button type="button" class="tool-btn" title="To-do list" onClick=${()=>{saveDraft(titleRef.current,editorRef.current?editorRef.current.innerHTML:bodyRef.current);setScreen('todos');setMenu(null)}}>☷</button></div>
     </div>`}
 
     ${screen==='list'&&html`<div>
